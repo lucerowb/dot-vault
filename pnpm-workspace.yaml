@@ -1,0 +1,9 @@
+# Root app plus workspace packages (CLI, browser extension).
+packages:
+  - "."
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

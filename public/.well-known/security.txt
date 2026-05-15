@@ -1,0 +1,4 @@
+Contact: https://github.com/lucerowb/dot-vault/security/advisories/new
+Preferred-Languages: en
+Canonical: https://dot-vault.lucerowb.cloud/.well-known/security.txt
+Policy: https://github.com/lucerowb/dot-vault/blob/main/SECURITY.md

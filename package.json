@@ -1,0 +1,77 @@
+{
+  "name": "dot-vault-web",
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.5",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "description": "Ephemeral quick-share plus authenticated cloud vault for .env — Better Auth, Supabase Postgres, Upstash Redis, Web Crypto.",
+  "license": "MIT",
+  "author": "Srijan Bajracharya <srijan.bajracharya97@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lucerowb/dot-vault.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lucerowb/dot-vault/issues"
+  },
+  "homepage": "https://github.com/lucerowb/dot-vault#readme",
+  "keywords": [
+    "env",
+    "secrets",
+    "zero-knowledge",
+    "encryption",
+    "nextjs",
+    "upstash",
+    "redis"
+  ],
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:generate": "node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate",
+    "db:push": "node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs push",
+    "db:check": "node --env-file=.env.local scripts/check-db.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "build:cli": "pnpm --filter @lucerowb/dot-vault build",
+    "build:extension": "pnpm --filter dotvault-browser-extension build",
+    "dv": "node packages/cli/bin/dot-vault.js",
+    "cli": "node packages/cli/bin/dot-vault.js",
+    "brand:normalize": "node scripts/normalize-brand-logos.mjs"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.11",
+    "@better-auth/infra": "^0.2.11",
+    "@tanstack/react-query": "^5.90.5",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
+    "better-auth": "^1.6.11",
+    "drizzle-orm": "^0.45.2",
+    "framer-motion": "^12.38.0",
+    "nanoid": "^5.1.11",
+    "next": "16.2.6",
+    "otpauth": "^9.5.1",
+    "postgres": "^3.4.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.5",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.6"
+  }
+}

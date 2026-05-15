@@ -1,0 +1,63 @@
+{
+  "name": "@lucerowb/dot-vault",
+  "version": "0.2.3",
+  "description": "CLI for DotVault — secure environment variable management",
+  "license": "MIT",
+  "author": "Srijan Bajracharya <srijan.bajracharya97@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lucerowb/dot-vault.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/lucerowb/dot-vault/issues"
+  },
+  "homepage": "https://github.com/lucerowb/dot-vault/tree/main/packages/cli#readme",
+  "keywords": [
+    "dotvault",
+    "env",
+    "secrets",
+    "cli",
+    "dotenv"
+  ],
+  "type": "module",
+  "bin": {
+    "dv": "./bin/dot-vault.js",
+    "dot-vault": "./bin/dot-vault.js",
+    "dotvault": "./bin/dot-vault.js"
+  },
+  "files": [
+    "README.md",
+    "CHANGELOG.md",
+    "bin",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": false
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.10.1",
+    "chalk": "^5.4.1",
+    "commander": "^12.1.0",
+    "dotenv": "^16.5.0",
+    "fs-extra": "^11.3.0",
+    "inquirer": "^12.5.2",
+    "node-fetch": "^3.3.2",
+    "ora": "^8.2.0",
+    "os-locale": "^6.0.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

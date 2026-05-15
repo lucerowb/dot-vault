@@ -1,0 +1,22 @@
+# Coolify: create a Docker Compose resource, point it at this file, and set
+# environment variables in the UI (DATABASE_URL, BETTER_AUTH_*, Redis, etc.).
+# Quick share requires Upstash REST credentials; Postgres is typically external (e.g. Supabase).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Must match your public URL (Coolify domain) — baked into the client bundle.
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://localhost:3000}
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Required at runtime (set in Coolify or a local .env file — do not commit secrets):
+      # DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, NEXT_PUBLIC_APP_URL,
+      # STORAGE_ENCRYPTION_KEY, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+    restart: unless-stopped

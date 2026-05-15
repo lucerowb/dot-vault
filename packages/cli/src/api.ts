@@ -1,0 +1,261 @@
+import fetch from "node-fetch";
+import { getConfig } from "./config.js";
+
+export interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
+export interface ProjectEnv {
+  id: string;
+  label: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+interface ApiErrorBody {
+  error?: string | { code?: string; message?: string };
+  message?: string;
+  code?: string;
+}
+
+interface ApiEnvelope<T> {
+  success?: boolean;
+  data?: T;
+}
+
+function parseApiError(body: ApiErrorBody, status: number): string {
+  if (typeof body.error === "object" && body.error?.message) {
+    return body.error.message;
+  }
+  if (typeof body.error === "string") {
+    return body.error;
+  }
+  return body.message || body.code || `HTTP ${status}`;
+}
+
+class ApiClient {
+  private async request<T>(
+    endpoint: string,
+    options: {
+      method?: string;
+      body?: unknown;
+      token?: string;
+    } = {},
+  ): Promise<T> {
+    const config = await getConfig();
+    const base = config.apiUrl.replace(/\/$/, "");
+    const url = `${base}/api${endpoint}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    const sessionToken = options.token || config.apiToken;
+    if (sessionToken) {
+      headers["Authorization"] = `Bearer ${sessionToken}`;
+    }
+
+    const response = await fetch(url, {
+      method: options.method || "GET",
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+
+    const raw = (await response.json().catch(() => ({}))) as ApiEnvelope<T> &
+      ApiErrorBody &
+      T;
+
+    if (!response.ok) {
+      throw new Error(parseApiError(raw, response.status));
+    }
+
+    if (
+      raw &&
+      typeof raw === "object" &&
+      "success" in raw &&
+      raw.success === true &&
+      "data" in raw
+    ) {
+      return raw.data as T;
+    }
+
+    return raw as T;
+  }
+
+  async login(email: string, password: string): Promise<{ token: string }> {
+    const config = await getConfig();
+    const base = config.apiUrl.replace(/\/$/, "");
+    const response = await fetch(`${base}/api/auth/sign-in/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as {
+      token?: string;
+      session?: { token?: string };
+      message?: string;
+      code?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || data.code || `HTTP ${response.status}`,
+      );
+    }
+
+    const token = data.token ?? data.session?.token;
+    if (!token) {
+      throw new Error(
+        "Sign-in succeeded but no session token was returned.",
+      );
+    }
+
+    return { token };
+  }
+
+  async getToken(): Promise<{ token: string }> {
+    const config = await getConfig();
+    if (!config.apiToken) {
+      throw new Error("Not authenticated");
+    }
+
+    const session = await this.request<{ user?: { id: string } } | null>(
+      "/auth/get-session",
+      { token: config.apiToken },
+    );
+
+    if (!session?.user) {
+      throw new Error("Session expired or invalid");
+    }
+
+    return { token: config.apiToken };
+  }
+
+  async listProjects(): Promise<Project[]> {
+    return this.request<Project[]>("/projects");
+  }
+
+  async resolveProjectId(ref: string): Promise<string> {
+    const trimmed = ref.trim();
+    if (UUID_RE.test(trimmed)) {
+      return trimmed;
+    }
+
+    const projects = await this.listProjects();
+    const needle = trimmed.toLowerCase();
+    const match = projects.find(
+      (p) =>
+        p.slug.toLowerCase() === needle ||
+        p.name.toLowerCase() === needle ||
+        p.id === trimmed,
+    );
+
+    if (!match) {
+      const hints =
+        projects.length > 0
+          ? projects.map((p) => `${p.name} → slug \`${p.slug}\``).join(", ")
+          : "none yet";
+      throw new Error(
+        `Project not found: "${ref}". Available: ${hints}.`,
+      );
+    }
+
+    return match.id;
+  }
+
+  async resolveProject(ref: string): Promise<Project> {
+    const id = await this.resolveProjectId(ref);
+    const projects = await this.listProjects();
+    const p = projects.find((x) => x.id === id);
+    if (!p) throw new Error("Project not found.");
+    return p;
+  }
+
+  async createProject(name: string, slug?: string): Promise<Project> {
+    return this.request<Project>("/projects", {
+      method: "POST",
+      body: slug ? { name, slug } : { name },
+    });
+  }
+
+  async listEnvs(projectId: string): Promise<ProjectEnv[]> {
+    return this.request<ProjectEnv[]>(`/projects/${projectId}/envs`);
+  }
+
+  async resolveEnvId(projectId: string, label: string): Promise<ProjectEnv> {
+    const envs = await this.listEnvs(projectId);
+    const needle = label.trim().toLowerCase();
+    const match = envs.find((e) => e.label.toLowerCase() === needle);
+    if (!match) {
+      const hints =
+        envs.length > 0
+          ? envs.map((e) => `\`${e.label}\``).join(", ")
+          : "none yet";
+      throw new Error(
+        `Environment "${label}" not found in this project. Available: ${hints}.`,
+      );
+    }
+    return match;
+  }
+
+  async getEnv(
+    projectId: string,
+    label: string,
+  ): Promise<{ content: string; env: ProjectEnv }> {
+    const env = await this.resolveEnvId(projectId, label);
+    const data = await this.request<{
+      content: string;
+      label: string;
+      id: string;
+    }>(`/projects/${projectId}/envs/${env.id}`);
+    return { content: data.content, env };
+  }
+
+  /** Create or update env by label (server upserts on POST). */
+  async upsertEnv(
+    projectId: string,
+    label: string,
+    content: string,
+  ): Promise<ProjectEnv> {
+    return this.request<ProjectEnv>(`/projects/${projectId}/envs`, {
+      method: "POST",
+      body: { label: label.trim(), content },
+    });
+  }
+
+  async updateEnvContent(
+    projectId: string,
+    label: string,
+    content: string,
+  ): Promise<ProjectEnv> {
+    return this.upsertEnv(projectId, label, content);
+  }
+
+  async renameEnv(
+    projectId: string,
+    oldLabel: string,
+    newLabel: string,
+  ): Promise<ProjectEnv> {
+    const env = await this.resolveEnvId(projectId, oldLabel);
+    return this.request<ProjectEnv>(`/projects/${projectId}/envs/${env.id}`, {
+      method: "PATCH",
+      body: { label: newLabel.trim() },
+    });
+  }
+
+  async deleteEnv(projectId: string, label: string): Promise<void> {
+    const env = await this.resolveEnvId(projectId, label);
+    await this.request<void>(`/projects/${projectId}/envs/${env.id}`, {
+      method: "DELETE",
+    });
+  }
+}
+
+export const api = new ApiClient();
