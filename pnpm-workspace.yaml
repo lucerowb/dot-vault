@@ -1,3 +1,7 @@
+# Single-package repo; `packages` is required when this file exists (pnpm run / CI / Docker).
+packages:
+  - "."
+
 allowBuilds:
   esbuild: true
   sharp: true
