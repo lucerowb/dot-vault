@@ -1,6 +1,7 @@
 {
   "name": "dot-vault",
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.5",
   "private": false,
   "description": "Ephemeral quick-share plus authenticated cloud vault for .env — Better Auth, Supabase Postgres, Upstash Redis, Web Crypto.",
   "license": "MIT",

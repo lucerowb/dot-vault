@@ -6,7 +6,8 @@
 FROM node:20.18.1-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable && corepack prepare pnpm@9.15.5 --activate
+# Corepack on Node 20.18.x lacks pnpm's current signing keys; install pnpm directly.
+RUN npm install -g pnpm@9.15.5
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
