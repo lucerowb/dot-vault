@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
+import { ClientProviders } from "@/components/ClientProviders";
 import { SiteHeader } from "@/components/SiteHeader";
+import { THEME_BOOT_JS } from "@/lib/theme-boot";
 import "./globals.css";
 
 const metadataBaseUrl =
@@ -31,10 +34,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-[#fafafa] text-zinc-900">
-        <SiteHeader />
-        <div className="flex flex-1 flex-col">{children}</div>
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
+        <Script id="theme-boot" strategy="beforeInteractive">
+          {THEME_BOOT_JS}
+        </Script>
+        <ClientProviders>
+          <SiteHeader />
+          <div className="flex flex-1 flex-col">{children}</div>
+        </ClientProviders>
       </body>
     </html>
   );

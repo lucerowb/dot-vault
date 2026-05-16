@@ -64,14 +64,17 @@ export function QuickSharePanel() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="text-4xl font-semibold tracking-tight text-zinc-900"
+          className="text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
         >
           Quick share
         </motion.h1>
-        <p className="mt-3 text-balance text-zinc-600">
+        <p className="mt-3 text-balance text-zinc-600 dark:text-zinc-400">
           Encrypt in your browser, upload ciphertext only. The key stays in the URL
           fragment — never sent to the server. Need long-term storage?{" "}
-          <Link href="/dashboard" className="text-blue-700 hover:underline">
+          <Link
+            href="/dashboard"
+            className="text-blue-700 hover:underline dark:text-blue-400"
+          >
             Cloud vault
           </Link>
         </p>
@@ -88,7 +91,7 @@ export function QuickSharePanel() {
 
             <div className="mt-10 grid w-full max-w-xl gap-6 sm:grid-cols-2">
               <fieldset className="space-y-2">
-                <legend className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <legend className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Expires after
                 </legend>
                 <div className="flex flex-wrap gap-2">
@@ -101,8 +104,8 @@ export function QuickSharePanel() {
                       className={[
                         "rounded-full px-3 py-1.5 text-sm transition",
                         ttl === o.value
-                          ? "bg-blue-600 text-white"
-                          : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                          ? "bg-blue-600 text-white dark:bg-blue-500"
+                          : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700",
                       ].join(" ")}
                     >
                       {o.label}
@@ -112,23 +115,23 @@ export function QuickSharePanel() {
               </fieldset>
 
               <div className="space-y-3">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
                   <input
                     type="checkbox"
                     checked={oneTime}
                     disabled={busy}
                     onChange={(e) => setOneTime(e.target.checked)}
-                    className="size-4 rounded border-zinc-300 text-blue-600"
+                    className="size-4 rounded border-zinc-300 text-blue-600 dark:border-zinc-600"
                   />
                   One-time link (deleted after first open)
                 </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
                   <input
                     type="checkbox"
                     checked={usePassphrase}
                     disabled={busy}
                     onChange={(e) => setUsePassphrase(e.target.checked)}
-                    className="size-4 rounded border-zinc-300 text-blue-600"
+                    className="size-4 rounded border-zinc-300 text-blue-600 dark:border-zinc-600"
                   />
                   Passphrase (PBKDF2 + AES-KW)
                 </label>
@@ -139,7 +142,7 @@ export function QuickSharePanel() {
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
                     placeholder="Passphrase"
-                    className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   />
                 ) : null}
               </div>
@@ -149,7 +152,7 @@ export function QuickSharePanel() {
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="mt-6 max-w-xl text-center text-sm text-red-700"
+                className="mt-6 max-w-xl text-center text-sm text-red-700 dark:text-red-400"
               >
                 {error}
               </motion.p>
@@ -168,15 +171,18 @@ export function QuickSharePanel() {
       {share ? (
         <button
           type="button"
-          className="mt-10 text-sm text-blue-700 underline-offset-2 hover:underline"
+          className="mt-10 text-sm text-blue-700 underline-offset-2 hover:underline dark:text-blue-400"
           onClick={() => setShare(null)}
         >
           Share another file
         </button>
       ) : null}
 
-      <footer className="mt-auto pt-16 text-center text-xs text-zinc-400">
-        <Link href="/" className="text-zinc-500 hover:text-zinc-700">
+      <footer className="mt-auto pt-16 text-center text-xs text-zinc-400 dark:text-zinc-500">
+        <Link
+          href="/"
+          className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        >
           ← Home
         </Link>
       </footer>

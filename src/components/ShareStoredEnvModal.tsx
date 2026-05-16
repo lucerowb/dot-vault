@@ -101,25 +101,25 @@ export function ShareStoredEnvModal({
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 30 }}
-        className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-xl"
+        className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-xl dark:border dark:border-zinc-700 dark:bg-zinc-900"
       >
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 id="share-env-title" className="font-semibold text-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4 dark:border-zinc-700">
+          <h2 id="share-env-title" className="font-semibold text-zinc-900 dark:text-zinc-100">
             Quick share · {envLabel}
           </h2>
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           >
             Close
           </button>
         </div>
 
         <div className="space-y-5 p-5">
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Creates an <strong>ephemeral Redis</strong> link (same crypto as{" "}
-            <Link href="/quick-share" className="text-blue-700 underline">
+            <Link href="/quick-share" className="text-blue-700 underline dark:text-blue-400">
               quick share
             </Link>
             ). Your cloud-stored ciphertext is untouched; recipients only get what
@@ -130,7 +130,7 @@ export function ShareStoredEnvModal({
             <>
               <div className="grid gap-6 sm:grid-cols-2">
                 <fieldset className="space-y-2">
-                  <legend className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  <legend className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     Expires after
                   </legend>
                   <div className="flex flex-wrap gap-2">
@@ -143,8 +143,8 @@ export function ShareStoredEnvModal({
                         className={[
                           "rounded-full px-3 py-1.5 text-sm transition",
                           ttl === o.value
-                            ? "bg-blue-600 text-white"
-                            : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                            ? "bg-blue-600 text-white dark:bg-blue-500"
+                            : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700",
                         ].join(" ")}
                       >
                         {o.label}
@@ -153,23 +153,23 @@ export function ShareStoredEnvModal({
                   </div>
                 </fieldset>
                 <div className="space-y-3">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
                     <input
                       type="checkbox"
                       checked={oneTime}
                       disabled={busy}
                       onChange={(e) => setOneTime(e.target.checked)}
-                      className="size-4 rounded border-zinc-300 text-blue-600"
+                      className="size-4 rounded border-zinc-300 text-blue-600 dark:border-zinc-600"
                     />
                     One-time link
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
                     <input
                       type="checkbox"
                       checked={usePassphrase}
                       disabled={busy}
                       onChange={(e) => setUsePassphrase(e.target.checked)}
-                      className="size-4 rounded border-zinc-300 text-blue-600"
+                      className="size-4 rounded border-zinc-300 text-blue-600 dark:border-zinc-600"
                     />
                     Passphrase on link
                   </label>
@@ -180,13 +180,13 @@ export function ShareStoredEnvModal({
                       value={passphrase}
                       onChange={(e) => setPassphrase(e.target.value)}
                       placeholder="Passphrase"
-                      className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2"
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
                     />
                   ) : null}
                 </div>
               </div>
               {error ? (
-                <p className="text-sm text-red-700" role="alert">
+                <p className="text-sm text-red-700 dark:text-red-400" role="alert">
                   {error}
                 </p>
               ) : null}
@@ -194,7 +194,7 @@ export function ShareStoredEnvModal({
                 type="button"
                 disabled={busy}
                 onClick={() => void generate()}
-                className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
               >
                 {busy ? "Creating link…" : "Generate ephemeral link"}
               </button>

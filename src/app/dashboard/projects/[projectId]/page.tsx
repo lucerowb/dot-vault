@@ -269,7 +269,7 @@ export default function ProjectDetailPage() {
   if (error && !project) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-12">
-        <p className="text-red-700">{error}</p>
+        <p className="text-red-700 dark:text-red-400">{error}</p>
         <Link href="/dashboard" className="mt-4 inline-block text-blue-700">
           ← Back
         </Link>
@@ -283,27 +283,27 @@ export default function ProjectDetailPage() {
         <div>
           <Link
             href="/dashboard"
-            className="text-xs font-medium uppercase tracking-wide text-zinc-500 hover:text-zinc-800"
+            className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200"
           >
             ← Projects
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold text-zinc-900">
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
               {project?.name ?? "…"}
             </h1>
             {myRole ? (
-              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-zinc-600">
+              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 {myRole}
               </span>
             ) : null}
           </div>
-          <p className="text-sm text-zinc-500">{project?.slug}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{project?.slug}</p>
         </div>
         {isOwner ? (
           <button
             type="button"
             onClick={() => void deleteProject()}
-            className="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-800 hover:bg-red-50"
+            className="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-800 hover:bg-red-50 dark:border-red-900/50 dark:text-red-200 dark:hover:bg-red-950/50"
           >
             Delete project
           </button>
@@ -311,13 +311,13 @@ export default function ProjectDetailPage() {
       </div>
 
       {error ? (
-        <p className="mt-4 text-sm text-red-700">{error}</p>
+        <p className="mt-4 text-sm text-red-700 dark:text-red-400">{error}</p>
       ) : null}
 
       {team ? (
-        <section className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">Team</h2>
-          <p className="mt-1 text-xs text-zinc-500">
+        <section className="mt-10 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Team</h2>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Owner can invite by email. Invited users sign in with that email and
             open the accept link.
           </p>
@@ -328,24 +328,24 @@ export default function ProjectDetailPage() {
               className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
             >
               <div className="min-w-[200px] flex-1">
-                <label className="text-xs text-zinc-500">Email</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400">Email</label>
                 <input
                   type="email"
                   required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="teammate@company.com"
-                  className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500">Role</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400">Role</label>
                 <select
                   value={inviteRole}
                   onChange={(e) =>
                     setInviteRole(e.target.value as "editor" | "viewer")
                   }
-                  className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 sm:w-36"
+                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 sm:w-36"
                 >
                   <option value="editor">Editor</option>
                   <option value="viewer">Viewer</option>
@@ -365,31 +365,31 @@ export default function ProjectDetailPage() {
             <p className="mt-3 text-sm text-emerald-800">{inviteFlash}</p>
           ) : null}
 
-          <h3 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <h3 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Members
           </h3>
           <ul className="mt-2 space-y-2">
             {team.members.map((m) => (
               <li
                 key={m.userId}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2 text-sm"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-800/80 px-3 py-2 text-sm"
               >
                 <div>
-                  <span className="font-medium text-zinc-900">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-50">
                     {m.name || m.email || m.userId}
                   </span>
                   {m.email ? (
-                    <span className="ml-2 text-zinc-500">{m.email}</span>
+                    <span className="ml-2 text-zinc-500 dark:text-zinc-400">{m.email}</span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-zinc-500">
+                  <span className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
                     {m.role}
                   </span>
                   {isOwner && m.role !== "owner" ? (
                     <button
                       type="button"
-                      className="text-xs text-red-700 hover:underline"
+                      className="text-xs text-red-700 dark:text-red-400 hover:underline"
                       onClick={() => void removeMember(m.userId)}
                     >
                       Remove
@@ -402,7 +402,7 @@ export default function ProjectDetailPage() {
 
           {isOwner && team.invitations.length > 0 ? (
             <>
-              <h3 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <h3 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Pending invites
               </h3>
               <ul className="mt-2 space-y-2">
@@ -411,14 +411,14 @@ export default function ProjectDetailPage() {
                     key={inv.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-sm"
                   >
-                    <span className="text-zinc-800">{inv.email}</span>
+                    <span className="text-zinc-800 dark:text-zinc-200">{inv.email}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs uppercase text-zinc-500">
+                      <span className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
                         {inv.role}
                       </span>
                       <button
                         type="button"
-                        className="text-xs text-red-700 hover:underline"
+                        className="text-xs text-red-700 dark:text-red-400 hover:underline"
                         onClick={() => void revokeInvite(inv.id)}
                       >
                         Revoke
@@ -433,9 +433,9 @@ export default function ProjectDetailPage() {
       ) : null}
 
       {canEditEnvs ? (
-        <section className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">Upload / replace</h2>
-          <p className="mt-1 text-xs text-zinc-500">
+        <section className="mt-10 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Upload / replace</h2>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Labels are unique per project. Use labels like <code>staging</code>,{" "}
             <code>prod</code>.
           </p>
@@ -444,21 +444,21 @@ export default function ProjectDetailPage() {
             className="mt-4 grid gap-3 sm:grid-cols-2"
           >
             <div className="sm:col-span-1">
-              <label className="text-xs text-zinc-500">Label</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400">Label</label>
               <input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-xs text-zinc-500">Content</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400">Content</label>
               <textarea
                 rows={8}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={"API_KEY=...\nDATABASE_URL=..."}
-                className="mt-1 w-full resize-y rounded-xl border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                className="mt-1 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
               />
             </div>
             <div className="sm:col-span-2">
@@ -473,26 +473,26 @@ export default function ProjectDetailPage() {
           </form>
         </section>
       ) : myRole === "viewer" ? (
-        <p className="mt-10 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        <p className="mt-10 rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/80 px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
           You have <strong>viewer</strong> access: you can open stored envs and
           create quick-share links, but not upload or delete blobs.
         </p>
       ) : null}
 
       <section className="mt-10">
-        <h2 className="text-sm font-semibold text-zinc-900">Stored envs</h2>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Stored envs</h2>
         <ul className="mt-3 space-y-2">
           {envs === null ? (
-            <li className="text-sm text-zinc-500">Loading…</li>
+            <li className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</li>
           ) : envs.length === 0 ? (
-            <li className="text-sm text-zinc-500">None yet.</li>
+            <li className="text-sm text-zinc-500 dark:text-zinc-400">None yet.</li>
           ) : (
             envs.map((env) => (
               <li
                 key={env.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 px-3 py-2"
               >
-                <span className="font-medium text-zinc-900">{env.label}</span>
+                <span className="font-medium text-zinc-900 dark:text-zinc-50">{env.label}</span>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   <button
                     type="button"
@@ -513,7 +513,7 @@ export default function ProjectDetailPage() {
                   {canEditEnvs ? (
                     <button
                       type="button"
-                      className="text-sm text-red-700 hover:underline"
+                      className="text-sm text-red-700 dark:text-red-400 hover:underline"
                       onClick={() => void deleteEnv(env.id)}
                     >
                       Delete
@@ -542,9 +542,9 @@ export default function ProjectDetailPage() {
           role="dialog"
           aria-modal
         >
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h3 className="font-medium text-zinc-900">{viewing.label}</h3>
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+              <h3 className="font-medium text-zinc-900 dark:text-zinc-50">{viewing.label}</h3>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -555,14 +555,14 @@ export default function ProjectDetailPage() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs"
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   onClick={() => setViewing(null)}
                 >
                   Close
                 </button>
               </div>
             </div>
-            <pre className="max-h-[60vh] overflow-auto p-4 text-left text-xs leading-relaxed text-zinc-800">
+            <pre className="max-h-[60vh] overflow-auto p-4 text-left text-xs leading-relaxed text-zinc-800 dark:text-zinc-200">
               {viewing.content}
             </pre>
           </div>
