@@ -96,7 +96,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
         and(eq(project.userId, row.userId), eq(project.slug, nextSlug))
       )
       .limit(1);
-    if (taken.length > 0 && taken[0].id !== projectId) {
+    const takenRow = taken[0];
+    if (takenRow && takenRow.id !== projectId) {
       return jsonError("SLUG_TAKEN", "Slug already in use.", 409);
     }
   }

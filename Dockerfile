@@ -3,7 +3,7 @@
 # Next.js production image (standalone output). For Coolify: set Build Pack to
 # "Dockerfile" or use docker-compose with this image as `web`.
 
-FROM node:20-bookworm-slim AS base
+FROM node:20.18.1-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable && corepack prepare pnpm@9.15.5 --activate

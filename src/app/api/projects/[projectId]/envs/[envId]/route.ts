@@ -122,7 +122,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
           )
         )
         .limit(1);
-      if (dup.length > 0 && dup[0].id !== envId) {
+      const dupRow = dup[0];
+      if (dupRow && dupRow.id !== envId) {
         return jsonError(
           "DUPLICATE_LABEL",
           "That label is already used in this project.",

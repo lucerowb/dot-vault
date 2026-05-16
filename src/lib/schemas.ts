@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-import type { VaultTtlSeconds } from "@/types/vault.types";
-
-const TTL_VALUES = [3600, 28800, 86400, 604800] as const satisfies readonly VaultTtlSeconds[];
+import { VAULT_TTL_SECONDS, type VaultTtlSeconds } from "@/lib/vault-ttl";
 
 function decodeBase64ToBytes(value: string): Uint8Array | null {
   try {
@@ -19,6 +17,13 @@ function decodeBase64ToBytes(value: string): Uint8Array | null {
   }
 }
 
+const ttlSchema = z.custom<VaultTtlSeconds>(
+  (val) =>
+    typeof val === "number" &&
+    (VAULT_TTL_SECONDS as readonly number[]).includes(val),
+  "Invalid TTL"
+);
+
 export const CreateVaultSchema = z.object({
   iv: z
     .string()
@@ -29,12 +34,7 @@ export const CreateVaultSchema = z.object({
       return bytes !== null && bytes.length === 12;
     }, "IV must be base64/base64url of exactly 12 bytes"),
   ciphertext: z.string().max(1_400_000),
-  ttl: z.union([
-    z.literal(TTL_VALUES[0]),
-    z.literal(TTL_VALUES[1]),
-    z.literal(TTL_VALUES[2]),
-    z.literal(TTL_VALUES[3]),
-  ]),
+  ttl: ttlSchema,
   oneTime: z.boolean().default(false),
 });
 
@@ -43,3 +43,6 @@ export type CreateVaultInput = z.infer<typeof CreateVaultSchema>;
 export const VaultTokenSchema = z
   .string()
   .regex(/^tk_[a-f0-9]{32}$/, "Invalid vault token");
+
+/** Max JSON body size for vault create (bytes). */
+export const MAX_VAULT_BODY_BYTES = 2_000_000;

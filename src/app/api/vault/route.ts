@@ -1,9 +1,9 @@
-import { CreateVaultSchema } from "@/lib/schemas";
-import { generateDeleteToken, generateVaultToken } from "@/lib/tokens";
+import { jsonVaultError, jsonVaultSuccess } from "@/lib/api-response";
 import { getClientIp } from "@/lib/ip";
 import { limitUpload } from "@/lib/ratelimit";
+import { CreateVaultSchema, MAX_VAULT_BODY_BYTES } from "@/lib/schemas";
+import { generateDeleteToken, generateVaultToken } from "@/lib/tokens";
 import { getRedis, saveVault } from "@/lib/vault-store";
-import { jsonError, jsonSuccess } from "@/lib/api-response";
 import type { VaultRecord } from "@/types/vault.types";
 
 export const runtime = "edge";
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const ip = getClientIp(request);
     const { success, remaining } = await limitUpload(ip);
     if (!success) {
-      return jsonError(
+      return jsonVaultError(
         "RATE_LIMITED",
         "Too many uploads. Try again later.",
         429,
@@ -23,16 +23,25 @@ export async function POST(request: Request) {
       );
     }
 
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_VAULT_BODY_BYTES) {
+      return jsonVaultError(
+        "PAYLOAD_TOO_LARGE",
+        "Request body exceeds 2 MB.",
+        413
+      );
+    }
+
     let body: unknown;
     try {
       body = await request.json();
     } catch {
-      return jsonError("INVALID_JSON", "Request body must be JSON.", 400);
+      return jsonVaultError("INVALID_JSON", "Request body must be JSON.", 400);
     }
 
     const parsed = CreateVaultSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(
+      return jsonVaultError(
         "VALIDATION_ERROR",
         parsed.error.issues.map((i) => i.message).join(" "),
         400
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
 
     await saveVault(redis, token, record);
 
-    return jsonSuccess(
+    return jsonVaultSuccess(
       {
         token,
         expiresAt: createdAt + parsed.data.ttl,
@@ -66,13 +75,13 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     if (message.includes("UPSTASH_REDIS")) {
-      return jsonError(
+      return jsonVaultError(
         "SERVICE_UNAVAILABLE",
         "Vault storage is not configured. Set Upstash Redis environment variables.",
         503
       );
     }
     console.error(err);
-    return jsonError("INTERNAL_ERROR", "Something went wrong.", 500);
+    return jsonVaultError("INTERNAL_ERROR", "Something went wrong.", 500);
   }
 }

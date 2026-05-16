@@ -1,4 +1,6 @@
-export type VaultTtlSeconds = 3600 | 28800 | 86400 | 604800;
+import type { VaultTtlSeconds } from "@/lib/vault-ttl";
+
+export type { VaultTtlSeconds };
 
 export type VaultRecord = {
   iv: string;
@@ -9,6 +11,7 @@ export type VaultRecord = {
   deleteToken: string;
 };
 
+/** Create response: deleteToken is revealed once; not part of the share URL fragment. */
 export type CreateVaultResponseData = {
   token: string;
   expiresAt: number;

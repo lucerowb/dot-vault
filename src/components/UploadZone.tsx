@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
   disabled?: boolean;
@@ -11,6 +11,22 @@ type Props = {
 
 export function UploadZone({ disabled, onFile, onPasteText }: Props) {
   const [drag, setDrag] = useState(false);
+  const submittedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!disabled) submittedRef.current = false;
+  }, [disabled]);
+
+  const submitText = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || disabled || submittedRef.current) return;
+      submittedRef.current = true;
+      onPasteText(trimmed);
+    },
+    [disabled, onPasteText]
+  );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -67,17 +83,23 @@ export function UploadZone({ disabled, onFile, onPasteText }: Props) {
         </label>
       </motion.div>
       <textarea
+        ref={textareaRef}
         rows={6}
         disabled={disabled}
         placeholder="Or paste environment file contents…"
         className="mt-6 w-full resize-y rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-inner outline-none ring-blue-500/30 transition focus:border-blue-400 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
         onPaste={(e) => {
           const t = e.clipboardData.getData("text/plain");
-          if (t.trim()) onPasteText(t);
+          if (!t.trim()) return;
+          e.preventDefault();
+          submitText(t);
+          if (textareaRef.current) textareaRef.current.value = "";
         }}
         onBlur={(e) => {
           const v = e.target.value.trim();
-          if (v) onPasteText(v);
+          if (!v) return;
+          submitText(v);
+          e.target.value = "";
         }}
       />
     </div>

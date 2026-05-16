@@ -4,6 +4,7 @@ import { getRedis } from "@/lib/redis";
 
 let _upload: Ratelimit | null = null;
 let _download: Ratelimit | null = null;
+let _auth: Ratelimit | null = null;
 
 function uploadLimiter(): Ratelimit {
   if (!_upload) {
@@ -27,6 +28,17 @@ function downloadLimiter(): Ratelimit {
   return _download;
 }
 
+function authLimiter(): Ratelimit {
+  if (!_auth) {
+    _auth = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(20, "15 m"),
+      prefix: "dotvault:ratelimit:auth",
+    });
+  }
+  return _auth;
+}
+
 export async function limitUpload(
   identifier: string
 ): Promise<{ success: boolean; remaining?: number }> {
@@ -38,5 +50,22 @@ export async function limitDownload(
   identifier: string
 ): Promise<{ success: boolean; remaining?: number }> {
   const { success, remaining } = await downloadLimiter().limit(identifier);
+  return { success, remaining };
+}
+
+function hasRedisEnv(): boolean {
+  return !!(
+    process.env.UPSTASH_REDIS_REST_URL?.trim() &&
+    process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
+  );
+}
+
+export async function limitAuth(
+  identifier: string
+): Promise<{ success: boolean; remaining?: number }> {
+  if (!hasRedisEnv()) {
+    return { success: true };
+  }
+  const { success, remaining } = await authLimiter().limit(identifier);
   return { success, remaining };
 }

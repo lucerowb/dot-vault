@@ -12,14 +12,16 @@ const metadataBaseUrl =
     ? process.env.NEXT_PUBLIC_APP_URL
     : "http://localhost:3000";
 
+const siteDescription =
+  "Zero-knowledge quick share plus encrypted cloud vault for environment files.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(metadataBaseUrl),
   title: {
     default: "DotVault — Secure .env handoffs",
     template: "%s · DotVault",
   },
-  description:
-    "Zero-knowledge quick share plus encrypted cloud vault for environment files.",
+  description: siteDescription,
   icons: {
     icon: [
       {
@@ -37,8 +39,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "DotVault",
-    description:
-      "Share and store .env files with browser crypto, Better Auth, and Supabase.",
+    description: siteDescription,
     type: "website",
   },
 };
@@ -51,6 +52,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
+        <noscript>
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+            JavaScript is required: DotVault encrypts and decrypts secrets in
+            your browser. Enable JavaScript to use quick share and cloud vault.
+          </div>
+        </noscript>
         <Script id="theme-boot" strategy="beforeInteractive">
           {THEME_BOOT_JS}
         </Script>

@@ -10,24 +10,16 @@ const baseURL =
   process.env.NEXT_PUBLIC_APP_URL ||
   "http://localhost:3000";
 
+if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET?.trim()) {
+  throw new Error("BETTER_AUTH_SECRET is required in production");
+}
+
 const secret =
   process.env.BETTER_AUTH_SECRET?.trim() ??
   "dev-only-change-better-auth-secret-never-use-in-real-prod-env";
 
 if (secret.length < 16) {
   throw new Error("BETTER_AUTH_SECRET must be at least 16 characters when set.");
-}
-
-const g = globalThis as unknown as { __dotvaultAuthSecretWarned?: boolean };
-if (
-  process.env.NODE_ENV === "production" &&
-  !process.env.BETTER_AUTH_SECRET &&
-  !g.__dotvaultAuthSecretWarned
-) {
-  g.__dotvaultAuthSecretWarned = true;
-  console.error(
-    "[dot-vault] BETTER_AUTH_SECRET is missing in production — fix your deployment configuration."
-  );
 }
 
 export const auth = betterAuth({

@@ -1,14 +1,18 @@
-import { VaultTokenSchema } from "@/lib/schemas";
+import {
+  jsonVaultError,
+  jsonVaultSuccess,
+  vaultResponseInit,
+} from "@/lib/api-response";
 import { timingSafeEqualString } from "@/lib/equals";
 import { getClientIp } from "@/lib/ip";
 import { limitDownload } from "@/lib/ratelimit";
+import { VaultTokenSchema } from "@/lib/schemas";
 import {
   deleteVaultKeys,
   fetchVaultAtomic,
   getRedis,
   readVaultForDelete,
 } from "@/lib/vault-store";
-import { jsonError, jsonSuccess } from "@/lib/api-response";
 
 export const runtime = "edge";
 
@@ -19,13 +23,13 @@ export async function GET(request: Request, context: RouteContext) {
     const { token } = await context.params;
     const parsedToken = VaultTokenSchema.safeParse(token);
     if (!parsedToken.success) {
-      return jsonError("NOT_FOUND", "Vault not found.", 404);
+      return jsonVaultError("NOT_FOUND", "Vault not found.", 404);
     }
 
     const ip = getClientIp(request);
     const { success, remaining } = await limitDownload(ip);
     if (!success) {
-      return jsonError(
+      return jsonVaultError(
         "RATE_LIMITED",
         "Too many downloads. Try again later.",
         429,
@@ -39,10 +43,10 @@ export async function GET(request: Request, context: RouteContext) {
     const result = await fetchVaultAtomic(redis, token);
 
     if (result.status === 404) {
-      return jsonError("NOT_FOUND", "Vault not found or expired.", 404);
+      return jsonVaultError("NOT_FOUND", "Vault not found or expired.", 404);
     }
     if (result.status === 410) {
-      return jsonError(
+      return jsonVaultError(
         "GONE",
         "This one-time vault was already retrieved.",
         410
@@ -52,7 +56,7 @@ export async function GET(request: Request, context: RouteContext) {
     const { record } = result;
     const { iv, ciphertext, ttl, oneTime, createdAt } = record;
 
-    return jsonSuccess(
+    return jsonVaultSuccess(
       {
         iv,
         ciphertext,
@@ -66,14 +70,14 @@ export async function GET(request: Request, context: RouteContext) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     if (message.includes("UPSTASH_REDIS")) {
-      return jsonError(
+      return jsonVaultError(
         "SERVICE_UNAVAILABLE",
         "Vault storage is not configured.",
         503
       );
     }
     console.error(err);
-    return jsonError("INTERNAL_ERROR", "Something went wrong.", 500);
+    return jsonVaultError("INTERNAL_ERROR", "Something went wrong.", 500);
   }
 }
 
@@ -82,12 +86,12 @@ export async function DELETE(request: Request, context: RouteContext) {
     const { token } = await context.params;
     const parsedToken = VaultTokenSchema.safeParse(token);
     if (!parsedToken.success) {
-      return jsonError("NOT_FOUND", "Vault not found.", 404);
+      return jsonVaultError("NOT_FOUND", "Vault not found.", 404);
     }
 
     const deleteHeader = request.headers.get("x-delete-token")?.trim();
     if (!deleteHeader) {
-      return jsonError(
+      return jsonVaultError(
         "DELETE_TOKEN_REQUIRED",
         "Missing X-Delete-Token header.",
         401
@@ -97,25 +101,25 @@ export async function DELETE(request: Request, context: RouteContext) {
     const redis = getRedis();
     const record = await readVaultForDelete(redis, token);
     if (!record) {
-      return jsonError("NOT_FOUND", "Vault not found or expired.", 404);
+      return jsonVaultError("NOT_FOUND", "Vault not found or expired.", 404);
     }
 
     if (!timingSafeEqualString(deleteHeader, record.deleteToken)) {
-      return jsonError("FORBIDDEN", "Invalid delete token.", 403);
+      return jsonVaultError("FORBIDDEN", "Invalid delete token.", 403);
     }
 
     await deleteVaultKeys(redis, token);
-    return new Response(null, { status: 204 });
+    return new Response(null, vaultResponseInit({ status: 204 }));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     if (message.includes("UPSTASH_REDIS")) {
-      return jsonError(
+      return jsonVaultError(
         "SERVICE_UNAVAILABLE",
         "Vault storage is not configured.",
         503
       );
     }
     console.error(err);
-    return jsonError("INTERNAL_ERROR", "Something went wrong.", 500);
+    return jsonVaultError("INTERNAL_ERROR", "Something went wrong.", 500);
   }
 }

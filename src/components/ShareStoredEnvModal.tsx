@@ -5,16 +5,9 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { createQuickShare } from "@/lib/quick-share-client";
-import type { VaultTtlSeconds } from "@/types/vault.types";
+import { TTL_OPTIONS, type VaultTtlSeconds } from "@/lib/vault-ttl";
 
 import { ShareLink } from "@/components/ShareLink";
-
-const TTL_OPTIONS: { label: string; value: VaultTtlSeconds }[] = [
-  { label: "1 hour", value: 3600 },
-  { label: "8 hours", value: 28800 },
-  { label: "24 hours", value: 86400 },
-  { label: "7 days", value: 604800 },
-];
 
 type Props = {
   projectId: string;

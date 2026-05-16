@@ -4,7 +4,7 @@ import {
   encryptUtf8,
   generateAesGcmKey,
 } from "@/lib/crypto";
-import type { VaultTtlSeconds } from "@/types/vault.types";
+import type { VaultTtlSeconds } from "@/lib/vault-ttl";
 
 const MAX_PLAINTEXT = 1_000_000;
 

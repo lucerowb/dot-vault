@@ -88,6 +88,7 @@ export async function POST(request: Request, ctx: Ctx) {
       .limit(1);
 
     if (dup.length > 0) {
+      const existing = dup[0]!;
       await db
         .update(projectEnv)
         .set({
@@ -95,13 +96,13 @@ export async function POST(request: Request, ctx: Ctx) {
           ciphertext,
           updatedAt: now,
         })
-        .where(eq(projectEnv.id, dup[0].id));
+        .where(eq(projectEnv.id, existing.id));
 
       return jsonSuccess(
         {
-          id: dup[0].id,
+          id: existing.id,
           label,
-          createdAt: dup[0].createdAt,
+          createdAt: existing.createdAt,
           updatedAt: now,
         },
         { status: 200 }
