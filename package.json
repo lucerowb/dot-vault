@@ -33,7 +33,8 @@
     "db:check": "node --env-file=.env.local scripts/check-db.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "brand:normalize": "node scripts/normalize-brand-logos.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.11",

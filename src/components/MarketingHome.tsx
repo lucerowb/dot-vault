@@ -25,7 +25,7 @@ export function MarketingHome() {
           className="mb-8 flex flex-col items-center gap-5"
         >
           <LogoMark className="h-20 w-20 opacity-95 md:h-24 md:w-24" />
-          <LogoWordmark className="h-10 w-auto max-w-[min(280px,85vw)] object-contain dark:brightness-110 dark:contrast-110 md:h-12" />
+          <LogoWordmark className="h-10 w-auto max-w-[min(280px,85vw)] object-contain md:h-12" />
         </motion.div>
 
         <motion.span
@@ -166,7 +166,7 @@ export function MarketingHome() {
 
       <footer className="relative border-t border-zinc-200 bg-zinc-50/90 py-10 text-center backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
         <div className="mx-auto flex flex-col items-center gap-3 px-4">
-          <LogoWordmark className="h-7 w-auto opacity-90 dark:brightness-110 dark:contrast-110" />
+          <LogoWordmark className="h-7 w-auto opacity-90" />
           <p className="text-xs text-zinc-500 dark:text-zinc-500">
             Secure environment handoffs
           </p>

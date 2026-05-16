@@ -20,6 +20,21 @@ export const metadata: Metadata = {
   },
   description:
     "Zero-knowledge quick share plus encrypted cloud vault for environment files.",
+  icons: {
+    icon: [
+      {
+        url: "/brand/logo-mark.png",
+        type: "image/png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/logo-mark-dark.png",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
     title: "DotVault",
     description:
