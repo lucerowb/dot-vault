@@ -66,6 +66,7 @@ export default function RootLayout({
           <div className="flex flex-1 flex-col">{children}</div>
         </ClientProviders>
         <Script
+          strategy="lazyOnload"
           type="module"
           src="https://widget.dev.aichat.site/dist/ai-chat-widget.js"
           id="ai-chat-widget"

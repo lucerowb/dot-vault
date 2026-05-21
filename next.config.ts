@@ -1,9 +1,14 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
+
+const aiChatWidgetOrigin = "https://widget.dev.aichat.site";
+const aiChatApiOrigin = "https://api.dev.aichat.site";
+const turnstileOrigin = "https://challenges.cloudflare.com";
+
 const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-  : "script-src 'self' 'unsafe-inline'";
+  ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${aiChatWidgetOrigin} ${turnstileOrigin}`
+  : `script-src 'self' 'unsafe-inline' ${aiChatWidgetOrigin} ${turnstileOrigin}`;
 
 const csp = [
   "default-src 'self'",
@@ -11,7 +16,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self'",
+  `connect-src 'self' ${aiChatWidgetOrigin} ${aiChatApiOrigin} ${turnstileOrigin}`,
+  `frame-src 'self' ${aiChatWidgetOrigin}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
