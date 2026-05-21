@@ -65,6 +65,13 @@ export default function RootLayout({
           <SiteHeader />
           <div className="flex flex-1 flex-col">{children}</div>
         </ClientProviders>
+        <Script
+          type="module"
+          src="https://widget.dev.aichat.site/dist/ai-chat-widget.js"
+          id="ai-chat-widget"
+          data-api-key="cmpfbpqen00x4zv09onvamjlt"
+          data-org-id="organization-test-319d5ed1-2a9c-4d2d-906f-c78804321944"
+        />
       </body>
     </html>
   );
