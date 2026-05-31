@@ -322,7 +322,9 @@ export function GitHubIntegration() {
                         )}`}
                       >
                         <div className="flex items-start gap-3">
-                          <span aria-hidden>{getSeverityEmoji(finding.severity)}</span>
+                          <span aria-hidden>
+                            {getSeverityEmoji(finding.severity)}
+                          </span>
                           <div className="min-w-0 flex-1">
                             <div className="font-medium">{finding.type}</div>
                             <div className="text-sm opacity-90">
@@ -379,8 +381,11 @@ export function GitHubIntegration() {
       </section>
 
       <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-        Full reference: <code className="text-zinc-600 dark:text-zinc-300">docs/GITHUB_INTEGRATION.md</code> in
-        the DotVault repository.
+        Full reference:{" "}
+        <code className="text-zinc-600 dark:text-zinc-300">
+          docs/GITHUB_INTEGRATION.md
+        </code>{" "}
+        in the DotVault repository.
       </p>
 
       {activeGuide ? (

@@ -45,12 +45,14 @@ export function LogoMark({ className, priority }: MarkProps) {
         .join(" ")}
     >
       <Image
+        key={src}
         src={src}
         alt=""
         fill
         className="object-contain"
         sizes="96px"
         priority={priority}
+        {...(priority ? { loading: "eager" as const } : {})}
       />
     </span>
   );
@@ -59,25 +61,61 @@ export function LogoMark({ className, priority }: MarkProps) {
 type WordmarkProps = {
   className?: string;
   priority?: boolean;
+  /** Preload light + dark assets; visibility follows `html.dark` (hero LCP). */
+  themeAwareStatic?: boolean;
 };
 
-/** Text wordmark. */
-export function LogoWordmark({ className, priority }: WordmarkProps) {
+function wordmarkImageProps(priority?: boolean) {
+  return {
+    alt: "DotVault",
+    width: 2048,
+    height: 568,
+    sizes: "(max-width: 640px) 85vw, 320px" as const,
+    priority,
+    ...(priority ? { loading: "eager" as const } : {}),
+  };
+}
+
+function LogoWordmarkStatic({ className, priority }: WordmarkProps) {
+  const base = className ?? "";
+  const shared = wordmarkImageProps(priority);
+  return (
+    <span className="inline-block" suppressHydrationWarning>
+      <Image
+        {...shared}
+        src="/brand/logo-wordmark.png"
+        className={[base, "dark:hidden"].filter(Boolean).join(" ")}
+      />
+      <Image
+        {...shared}
+        src="/brand/logo-wordmark-dark.png"
+        className={[base, "hidden dark:block"].filter(Boolean).join(" ")}
+      />
+    </span>
+  );
+}
+
+function LogoWordmarkDynamic({ className, priority }: WordmarkProps) {
   const dark = useHtmlDarkAfterMount();
   const src = dark
     ? "/brand/logo-wordmark-dark.png"
     : "/brand/logo-wordmark.png";
   return (
     <Image
+      {...wordmarkImageProps(priority)}
+      key={src}
       src={src}
-      alt="DotVault"
-      width={2048}
-      height={568}
-      sizes="(max-width: 640px) 85vw, 320px"
       className={className}
-      priority={priority}
     />
   );
+}
+
+/** Text wordmark. */
+export function LogoWordmark({ themeAwareStatic, ...props }: WordmarkProps) {
+  if (themeAwareStatic) {
+    return <LogoWordmarkStatic {...props} />;
+  }
+  return <LogoWordmarkDynamic {...props} />;
 }
 
 /** Header: mark + wordmark. */

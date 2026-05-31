@@ -209,6 +209,13 @@ jobs:
       - name: Build browser extension
         run: pnpm -C packages/browser-extension run build
 
+      - name: Verify browser extension icons
+        run: |
+          set -euo pipefail
+          for size in 16 32 48 128; do
+            test -f "packages/browser-extension/dist/icons/icon${size}.png"
+          done
+
       - name: Package browser extension
         run: |
           set -euo pipefail

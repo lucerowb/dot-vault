@@ -100,8 +100,7 @@ export function EnvQuickShareCreateForm({
     }
   }
 
-  const rateLimited =
-    rateLimitUntilMs !== null && rateLimitUntilMs > nowMs;
+  const rateLimited = rateLimitUntilMs !== null && rateLimitUntilMs > nowMs;
 
   function resetForm() {
     setShare(null);
@@ -140,7 +139,10 @@ export function EnvQuickShareCreateForm({
     <div className="space-y-5">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         Creates an ephemeral Redis link (same crypto as{" "}
-        <Link href="/quick-share" className="text-blue-700 underline dark:text-blue-400">
+        <Link
+          href="/quick-share"
+          className="text-blue-700 underline dark:text-blue-400"
+        >
           quick share
         </Link>
         ). Recipients only get access until expiry, one-time open, or you revoke

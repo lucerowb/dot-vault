@@ -13,7 +13,8 @@
   "devDependencies": {
     "archiver": "^7.0.1",
     "chokidar": "^4.0.3",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "sharp": "^0.34.2"
   },
   "license": "MIT"
 }

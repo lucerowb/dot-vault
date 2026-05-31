@@ -1,10 +1,7 @@
 import { jsonVaultError, jsonVaultSuccess } from "@/lib/api-response";
 import { timingSafeEqualString } from "@/lib/equals";
 import { VaultTokenSchema } from "@/lib/schemas";
-import {
-  getVaultAccessLog,
-  summarizeAccessLog,
-} from "@/lib/vault-access";
+import { getVaultAccessLog, summarizeAccessLog } from "@/lib/vault-access";
 import {
   getRedis,
   peekVault,

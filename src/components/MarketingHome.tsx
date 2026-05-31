@@ -24,8 +24,12 @@ export function MarketingHome() {
           transition={{ type: "spring", stiffness: 300, damping: 32 }}
           className="mb-8 flex flex-col items-center gap-5"
         >
-          <LogoMark className="h-20 w-20 opacity-95 md:h-24 md:w-24" />
-          <LogoWordmark className="h-10 w-auto max-w-[min(280px,85vw)] object-contain md:h-12" />
+          <LogoMark className="h-20 w-20 opacity-95 md:h-24 md:w-24" priority />
+          <LogoWordmark
+            className="h-10 w-auto max-w-[min(280px,85vw)] object-contain md:h-12"
+            priority
+            themeAwareStatic
+          />
         </motion.div>
 
         <motion.span

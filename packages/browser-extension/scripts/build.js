@@ -3,9 +3,13 @@ import * as esbuild from "esbuild";
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = join(pkgRoot, "../..");
 const outDir = join(pkgRoot, "dist");
+const iconSource = join(repoRoot, "src/app/icon.png");
+const ICON_SIZES = [16, 32, 48, 128];
 
 mkdirSync(outDir, { recursive: true });
 
@@ -35,10 +39,27 @@ async function build() {
   cpSync(join(pkgRoot, "popup/popup.css"), join(outDir, "popup.css"));
   cpSync(join(pkgRoot, "content/content.css"), join(outDir, "content.css"));
 
-  const icons = join(pkgRoot, "icons");
-  if (existsSync(icons)) {
-    cpSync(icons, join(outDir, "icons"), { recursive: true });
+  await buildIcons();
+}
+
+async function buildIcons() {
+  if (!existsSync(iconSource)) {
+    throw new Error(
+      `Extension icon source missing at ${iconSource}. Expected src/app/icon.png in the repo root.`,
+    );
   }
+
+  const iconsOut = join(outDir, "icons");
+  mkdirSync(iconsOut, { recursive: true });
+
+  await Promise.all(
+    ICON_SIZES.map(async (size) => {
+      await sharp(iconSource)
+        .resize(size, size)
+        .png()
+        .toFile(join(iconsOut, `icon${size}.png`));
+    }),
+  );
 }
 
 await build();

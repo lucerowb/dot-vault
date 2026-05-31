@@ -28,6 +28,8 @@ jobs:
               - '.github/workflows/**'
               - 'src/**'
               - 'public/**'
+              - 'docs/**'
+              - 'packages/docs-site/**'
               - 'e2e/**'
               - 'drizzle/**'
               - 'scripts/**'
@@ -135,3 +137,10 @@ jobs:
 
       - name: Build extension
         run: pnpm --filter dotvault-browser-extension build
+
+      - name: Verify extension icons
+        run: |
+          set -euo pipefail
+          for size in 16 32 48 128; do
+            test -f "packages/browser-extension/dist/icons/icon${size}.png"
+          done

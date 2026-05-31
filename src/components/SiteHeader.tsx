@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
+import { DocsLink } from "@/components/DocsLink";
 import { LogoHeaderLink } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -24,6 +25,9 @@ export function SiteHeader() {
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <ThemeToggle />
           <nav className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400 sm:gap-4">
+            <DocsLink className="hover:text-zinc-900 dark:hover:text-zinc-100">
+              Docs
+            </DocsLink>
             <Link
               href="/quick-share"
               className="hover:text-zinc-900 dark:hover:text-zinc-100"

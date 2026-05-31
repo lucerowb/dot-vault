@@ -33,8 +33,7 @@ export function QuickSharePanel() {
   } | null>(null);
   const nowMs = useNowMs();
 
-  const rateLimited =
-    rateLimitUntilMs !== null && rateLimitUntilMs > nowMs;
+  const rateLimited = rateLimitUntilMs !== null && rateLimitUntilMs > nowMs;
 
   async function encryptAndUpload(text: string) {
     if (rateLimited) return;

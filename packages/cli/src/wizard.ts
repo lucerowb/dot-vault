@@ -1,11 +1,7 @@
 import chalk from "chalk";
 import path from "path";
 import { api } from "./api.js";
-import {
-  getConfig,
-  resolveDefaultApiUrl,
-  saveConfig,
-} from "./config.js";
+import { getConfig, resolveDefaultApiUrl, saveConfig } from "./config.js";
 import {
   promptApiUrl,
   promptConfirm,
@@ -13,10 +9,7 @@ import {
   promptPassword,
   promptProject,
 } from "./prompts.js";
-import {
-  detectEnvFiles,
-  readEnvFile,
-} from "./utils.js";
+import { detectEnvFiles, readEnvFile } from "./utils.js";
 import { createSpinner } from "./spinner.js";
 import {
   hint,

@@ -147,7 +147,7 @@ export default function EnvDetailPage() {
         ) : null}
       </div>
 
-      {actionError ?? loadError ? (
+      {(actionError ?? loadError) ? (
         <p className="mt-4 text-sm text-red-700 dark:text-red-400" role="alert">
           {actionError ?? loadError}
         </p>

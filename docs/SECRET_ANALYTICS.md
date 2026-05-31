@@ -31,7 +31,7 @@ Overall security rating (0-100) based on:
 | 80-89  | B     | Good      |
 | 70-79  | C     | Fair      |
 | 60-69  | D     | Poor      |
-| <60    | F     | Critical  |
+| Under 60 | F     | Critical  |
 
 ### Weak Secret Detection
 

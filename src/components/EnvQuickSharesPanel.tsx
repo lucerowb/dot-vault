@@ -87,9 +87,7 @@ function ShareRow({
   const [showUrl, setShowUrl] = useState(false);
   const [copied, setCopied] = useState(false);
   const remaining =
-    share.status === "active"
-      ? formatRemaining(share.expiresAt, nowSec)
-      : null;
+    share.status === "active" ? formatRemaining(share.expiresAt, nowSec) : null;
 
   async function copyLink() {
     await navigator.clipboard.writeText(share.shareUrl);
@@ -167,10 +165,7 @@ function ShareRow({
         </code>
       ) : null}
 
-      <VaultShareAccessInsights
-        insights={insights}
-        loading={insightsLoading}
-      />
+      <VaultShareAccessInsights insights={insights} loading={insightsLoading} />
     </li>
   );
 }
@@ -195,7 +190,10 @@ export function EnvQuickSharesPanel({
   const [insightsLoading, setInsightsLoading] = useState(false);
 
   useEffect(() => {
-    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
+    const id = setInterval(
+      () => setNowSec(Math.floor(Date.now() / 1000)),
+      1000,
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -268,7 +266,11 @@ export function EnvQuickSharesPanel({
   const past = records.filter((r) => r.status !== "active");
 
   async function handleRevoke(share: EnvQuickShareRecord) {
-    if (!confirm("Revoke this link? Recipients will no longer be able to open it.")) {
+    if (
+      !confirm(
+        "Revoke this link? Recipients will no longer be able to open it.",
+      )
+    ) {
       return;
     }
     setActionError(null);

@@ -26,6 +26,10 @@ pnpm dv help
 - Do not commit `.env`, `.env.local`, or real secrets.
 - Update docs when you change env vars, API routes, or CLI behavior.
 
+### AI agents and cross-package updates
+
+If you use Cursor, Claude Code, or similar tools, read **[`AGENTS.md`](./AGENTS.md)** before finishing a task. It lists what to update automatically in the same PR — including the **CLI**, **browser extension**, **`docs/`** (Docusaurus), **`README.md`**, **`.env.example`**, Docker/CI, and other repo files — without waiting for a follow-up request.
+
 ## Security
 
 Do not open public issues for vulnerabilities. See [SECURITY.md](./SECURITY.md).

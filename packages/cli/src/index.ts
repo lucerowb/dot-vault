@@ -172,14 +172,14 @@ function registerProgram(): void {
 
         if (projects.length === 0) {
           console.log(chalk.yellow("\n  No projects yet."));
-          console.log(
-            chalk.gray(`  → ${resolveDefaultApiUrl()}/dashboard\n`),
-          );
+          console.log(chalk.gray(`  → ${resolveDefaultApiUrl()}/dashboard\n`));
           return;
         }
 
         printProjectTable(projects);
-        hint(`List envs: \`${CLI_BIN} e <slug>\`  ·  Pull: \`${CLI_BIN} pl production -p <slug>\``);
+        hint(
+          `List envs: \`${CLI_BIN} e <slug>\`  ·  Pull: \`${CLI_BIN} pl production -p <slug>\``,
+        );
         printNextSteps("projects");
       } catch (error) {
         handleError(error);
@@ -227,8 +227,7 @@ function registerProgram(): void {
           options.project,
           "pull",
         );
-        const label =
-          labelArg ?? (await promptEnvLabel(projectId, "pull"));
+        const label = labelArg ?? (await promptEnvLabel(projectId, "pull"));
 
         const outputFile = options.output || ".env";
         const outputPath = path.resolve(outputFile);
@@ -288,7 +287,10 @@ function registerProgram(): void {
         const detected = detectEnvFiles();
         const envFile = file ?? (await promptEnvFile(detected));
         const content = await readEnvFile(envFile);
-        const projectId = await resolveProjectForCommand(options.project, "push");
+        const projectId = await resolveProjectForCommand(
+          options.project,
+          "push",
+        );
 
         let label = options.label;
         if (!label) {

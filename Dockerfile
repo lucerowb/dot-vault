@@ -11,6 +11,9 @@ RUN npm install -g pnpm@9.15.5
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/cli/package.json packages/cli/
+COPY packages/browser-extension/package.json packages/browser-extension/
+COPY packages/docs-site/package.json packages/docs-site/
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
@@ -44,6 +47,6 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "const p=process.env.PORT||3000;Promise.all([fetch('http://127.0.0.1:'+p+'/'),fetch('http://127.0.0.1:'+p+'/docs/')]).then(rs=>process.exit(rs.every(r=>r.ok)?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]

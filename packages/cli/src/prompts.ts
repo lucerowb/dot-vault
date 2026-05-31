@@ -126,9 +126,7 @@ export async function promptEnvLabel(
   return picked;
 }
 
-export async function promptEnvFile(
-  detected: string[],
-): Promise<string> {
+export async function promptEnvFile(detected: string[]): Promise<string> {
   if (detected.length === 0) {
     return input({
       message: "Path to .env file",

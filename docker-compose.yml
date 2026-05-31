@@ -1,6 +1,9 @@
 # Coolify: create a Docker Compose resource, point it at this file, and set
 # environment variables in the UI (DATABASE_URL, BETTER_AUTH_*, Redis, etc.).
 # Quick share requires Upstash REST credentials; Postgres is typically external (e.g. Supabase).
+#
+# Documentation is baked into the image at /docs/ (Docusaurus → public/docs during build).
+# Local development with live docs: docker compose -f docker-compose.dev.yml up
 
 services:
   web:
@@ -20,3 +23,15 @@ services:
       # DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, NEXT_PUBLIC_APP_URL,
       # STORAGE_ENCRYPTION_KEY, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const p=process.env.PORT||3000;Promise.all([fetch('http://127.0.0.1:'+p+'/'),fetch('http://127.0.0.1:'+p+'/docs/')]).then(rs=>process.exit(rs.every(r=>r.ok)?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3

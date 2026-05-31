@@ -12,7 +12,10 @@ export type RateLimitResult = {
   reset?: number;
 };
 
-export function formatRetryCountdown(retryAtMs: number, nowMs = Date.now()): string {
+export function formatRetryCountdown(
+  retryAtMs: number,
+  nowMs = Date.now(),
+): string {
   const totalSec = Math.max(0, Math.ceil((retryAtMs - nowMs) / 1000));
   if (totalSec <= 0) return "now";
   const h = Math.floor(totalSec / 3600);

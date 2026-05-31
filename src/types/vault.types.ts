@@ -41,11 +41,7 @@ export type VaultInsightsData = {
   uniqueIps: number;
   firstOpenedAt: number | null;
   lastOpenedAt: number | null;
-  safetyHint:
-    | "not_opened"
-    | "opened_once"
-    | "opened_multiple"
-    | "multiple_ips";
+  safetyHint: "not_opened" | "opened_once" | "opened_multiple" | "multiple_ips";
   accesses: VaultAccessEvent[];
 };
 

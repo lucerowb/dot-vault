@@ -105,16 +105,12 @@ class ApiClient {
     };
 
     if (!response.ok) {
-      throw new Error(
-        data.message || data.code || `HTTP ${response.status}`,
-      );
+      throw new Error(data.message || data.code || `HTTP ${response.status}`);
     }
 
     const token = data.token ?? data.session?.token;
     if (!token) {
-      throw new Error(
-        "Sign-in succeeded but no session token was returned.",
-      );
+      throw new Error("Sign-in succeeded but no session token was returned.");
     }
 
     return { token };
@@ -162,9 +158,7 @@ class ApiClient {
         projects.length > 0
           ? projects.map((p) => `${p.name} → slug \`${p.slug}\``).join(", ")
           : "none yet";
-      throw new Error(
-        `Project not found: "${ref}". Available: ${hints}.`,
-      );
+      throw new Error(`Project not found: "${ref}". Available: ${hints}.`);
     }
 
     return match.id;

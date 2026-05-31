@@ -3,6 +3,7 @@ import Script from "next/script";
 
 import { ClientProviders } from "@/components/ClientProviders";
 import { SiteHeader } from "@/components/SiteHeader";
+import { HOME_BFCACHE_RELOAD_JS } from "@/lib/home-bfcache-reload";
 import { THEME_BOOT_JS } from "@/lib/theme-boot";
 import "./globals.css";
 
@@ -65,6 +66,9 @@ export default function RootLayout({
             your browser. Enable JavaScript to use quick share and cloud vault.
           </div>
         </noscript>
+        <Script id="home-bfcache-reload" strategy="beforeInteractive">
+          {HOME_BFCACHE_RELOAD_JS}
+        </Script>
         <Script id="theme-boot" strategy="beforeInteractive">
           {THEME_BOOT_JS}
         </Script>

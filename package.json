@@ -27,7 +27,11 @@
     "redis"
   ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "node scripts/ensure-docs-built.mjs && next dev",
+    "dev:docs": "pnpm --filter @dot-vault/docs-site start",
+    "build:docs": "pnpm --filter @dot-vault/docs-site build",
+    "prebuild": "pnpm run build:docs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

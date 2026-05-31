@@ -47,15 +47,20 @@ function bypassed(): RateLimitResult {
   return { success: true, remaining: 999 };
 }
 
-export async function limitUpload(identifier: string): Promise<RateLimitResult> {
+export async function limitUpload(
+  identifier: string,
+): Promise<RateLimitResult> {
   if (isRateLimitBypassed()) return bypassed();
   const { success, remaining, reset } = await uploadLimiter().limit(identifier);
   return { success, remaining, reset };
 }
 
-export async function limitDownload(identifier: string): Promise<RateLimitResult> {
+export async function limitDownload(
+  identifier: string,
+): Promise<RateLimitResult> {
   if (isRateLimitBypassed()) return bypassed();
-  const { success, remaining, reset } = await downloadLimiter().limit(identifier);
+  const { success, remaining, reset } =
+    await downloadLimiter().limit(identifier);
   return { success, remaining, reset };
 }
 
@@ -66,9 +71,7 @@ function hasRedisEnv(): boolean {
   );
 }
 
-export async function limitAuth(
-  identifier: string,
-): Promise<RateLimitResult> {
+export async function limitAuth(identifier: string): Promise<RateLimitResult> {
   if (!hasRedisEnv() || isRateLimitBypassed()) {
     return bypassed();
   }

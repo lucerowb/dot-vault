@@ -1,6 +1,6 @@
 # DotVault CLI
 
-> **Source of truth:** [`packages/cli/README.md`](../packages/cli/README.md) (published as [@lucerowb/dot-vault](https://www.npmjs.com/package/@lucerowb/dot-vault) on npm).
+> **Source of truth:** [`packages/cli/README.md`](https://github.com/lucerowb/dot-vault/blob/main/packages/cli/README.md) (published as [@lucerowb/dot-vault](https://www.npmjs.com/package/@lucerowb/dot-vault) on npm).
 
 The CLI signs in with your DotVault account and **pulls** / **pushes** encrypted `.env` files. Short command: **`dv`** (also `dot-vault`, `dotvault`).
 
@@ -65,4 +65,4 @@ node packages/cli/bin/dot-vault.js
 
 ## Legacy / planned
 
-Sections below in older copies of this file (Homebrew tap, `dotvault env get`, OAuth-only login) may not match the shipped CLI yet. Use `dv help` and [`packages/cli/README.md`](../packages/cli/README.md) for the current command list.
+Sections below in older copies of this file (Homebrew tap, `dotvault env get`, OAuth-only login) may not match the shipped CLI yet. Use `dv help` and [`packages/cli/README.md`](https://github.com/lucerowb/dot-vault/blob/main/packages/cli/README.md) for the current command list.

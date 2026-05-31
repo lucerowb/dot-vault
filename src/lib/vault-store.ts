@@ -50,7 +50,10 @@ async function isRevoked(redis: Redis, token: string): Promise<boolean> {
   return Number(exists) > 0;
 }
 
-export async function markVaultRevoked(redis: Redis, token: string): Promise<void> {
+export async function markVaultRevoked(
+  redis: Redis,
+  token: string,
+): Promise<void> {
   await redis.set(revokedKey(token), "1", {
     ex: ACCESS_LOG_RETENTION_SECONDS,
   });

@@ -6,8 +6,7 @@
 import chalk from "chalk";
 import { buildLogoMask, LOGO_MASK_H, LOGO_MASK_W } from "./logo-mask.js";
 
-const DENSITY_RAMP =
-  ' .\'`^",:;!iIl|/\\()[]{}1tfrjxcvuELXCJFZ0985@#&%$*+=~<>';
+const DENSITY_RAMP = " .'`^\",:;!iIl|/\\()[]{}1tfrjxcvuELXCJFZ0985@#&%$*+=~<>";
 
 const MASK = buildLogoMask();
 

@@ -55,7 +55,7 @@ cp .env.example .env.local
 # Fill DATABASE_URL, BETTER_AUTH_SECRET, STORAGE_ENCRYPTION_KEY, Redis for quick share, etc.
 pnpm install
 pnpm run db:migrate   # or apply drizzle/*.sql in order in the Supabase SQL editor
-pnpm dev
+pnpm dev    # Next.js + Docusaurus (docs at http://localhost:3000/docs/)
 ```
 
 - Home: [http://localhost:3000](http://localhost:3000)
@@ -68,8 +68,11 @@ If `pnpm install` complains about ignored build scripts (`esbuild`), run `pnpm a
 
 | Command | Purpose |
 | -------- | -------- |
-| `pnpm dev` | Next.js dev server |
-| `pnpm build` / `pnpm start` | Production build / server |
+| `pnpm dev` | Next.js + Docusaurus together (`/docs/` on port 3000) |
+| `pnpm dev:web` | Next.js only (needs `pnpm dev:docs` or prior `pnpm build:docs`) |
+| `pnpm dev:docs` | Docusaurus only (port 3456) |
+| `pnpm build:docs` | Build static docs into `public/docs/` |
+| `pnpm build` / `pnpm start` | Production build / server (runs `build:docs` first) |
 | `pnpm lint` | ESLint |
 | `pnpm test` | Vitest (crypto helpers) |
 | `pnpm test:e2e` | Playwright (install browser first: `pnpm exec playwright install chromium`) |
@@ -360,6 +363,8 @@ Use **Actions → CI → Run workflow** to run all jobs manually.
 
 ## Documentation
 
+Browse all guides in the app at **`/docs/`** (powered by [Docusaurus](https://docusaurus.io/) in `packages/docs-site`). Source markdown lives in [`docs/`](./docs/).
+
 | Doc | Topic |
 | ----- | ------ |
 | [FEATURES_SUMMARY.md](./docs/FEATURES_SUMMARY.md) | Feature index |
@@ -392,6 +397,11 @@ This project does **not** provide legal or compliance advice.
 2. Set `DATABASE_URL`, `BETTER_AUTH_*`, `STORAGE_ENCRYPTION_KEY`, `NEXT_PUBLIC_APP_URL`.
 3. Optional: Upstash for quick share; SMTP for email; GitHub App vars.
 4. Deploy on Vercel, Coolify ([`Dockerfile`](./Dockerfile)), or [self-hosted](./docs/SELF_HOSTED.md).
+
+**Docker**
+
+- Production (app + baked-in docs at `/docs/`): `docker compose up --build`
+- Development (live reload for app and docs): `docker compose -f docker-compose.dev.yml up --build` → http://localhost:3000 and http://localhost:3000/docs/
 
 Ephemeral vault routes (`/api/vault/*`) use the **Edge** runtime; Better Auth + Postgres use **Node**.
 

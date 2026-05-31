@@ -28,7 +28,10 @@ export class QuickShareRateLimitError extends Error {
   }
 }
 
-function parseRetryAtMs(res: Response, json: { error?: { retryAtMs?: number } }): number {
+function parseRetryAtMs(
+  res: Response,
+  json: { error?: { retryAtMs?: number } },
+): number {
   const header = res.headers.get("X-RateLimit-Reset");
   if (header) {
     const n = Number(header);
@@ -91,7 +94,9 @@ export async function createQuickShare(options: {
 
   // Always use the origin that created the vault so Redis and the link stay aligned.
   const origin =
-    typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : "";
+    typeof window !== "undefined"
+      ? window.location.origin.replace(/\/$/, "")
+      : "";
 
   const url = `${origin}/r/${json.data.token}#${fragment}`;
 

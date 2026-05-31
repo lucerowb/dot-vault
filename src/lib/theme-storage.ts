@@ -2,6 +2,25 @@ export const THEME_STORAGE_KEY = "dotvault-theme";
 
 export type ThemePreference = "light" | "dark" | "system";
 
+const themeListeners = new Set<() => void>();
+
+export function subscribeThemePreference(onStoreChange: () => void) {
+  themeListeners.add(onStoreChange);
+  return () => {
+    themeListeners.delete(onStoreChange);
+  };
+}
+
+export function notifyThemePreferenceChange() {
+  for (const listener of themeListeners) {
+    listener();
+  }
+}
+
+export function getServerThemePreference(): ThemePreference {
+  return "system";
+}
+
 export function readThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "system";
   try {

@@ -1,4 +1,4 @@
-# Root app plus workspace packages (CLI, browser extension).
+# Root app plus workspace packages (CLI, browser extension, docs site).
 packages:
   - "."
   - "packages/*"

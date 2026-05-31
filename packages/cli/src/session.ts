@@ -170,11 +170,13 @@ async function actionListEnvs(session: CliSession): Promise<void> {
   const envs = await api.listEnvs(projectId);
   spinner.stop();
   if (envs.length === 0) {
-    hint('No envs yet — use “Upload .env to vault”.');
+    hint("No envs yet — use “Upload .env to vault”.");
     return;
   }
   printEnvTable(envs);
-  hint(`Pull: menu → Download, or \`${CLI_BIN} pl <label> -p ${session.projectSlug}\``);
+  hint(
+    `Pull: menu → Download, or \`${CLI_BIN} pl <label> -p ${session.projectSlug}\``,
+  );
 }
 
 async function actionPull(session: CliSession): Promise<void> {
@@ -362,7 +364,10 @@ export async function runInteractiveSession(): Promise<void> {
               },
               { name: "📥  Download env → local file", value: "pull" },
               { name: "📤  Upload local .env → vault", value: "push" },
-              { name: "✏️  Edit env (download, edit, re-upload)", value: "edit" },
+              {
+                name: "✏️  Edit env (download, edit, re-upload)",
+                value: "edit",
+              },
               { name: "🏷️  Rename environment", value: "rename-env" },
               { name: "🗑️  Delete environment", value: "delete-env" },
               {

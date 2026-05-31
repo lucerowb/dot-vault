@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+/** Docusaurus dev server (see `pnpm dev` / packages/docs-site). */
+const docsDevOrigin =
+  process.env.DOCS_DEV_ORIGIN?.replace(/\/$/, "") ?? "http://127.0.0.1:3456";
+
 const aiChatWidgetOrigin = "https://widget.dev.aichat.site";
 const aiChatApiOrigin = "https://api.dev.aichat.site";
 const turnstileOrigin = "https://challenges.cloudflare.com";
@@ -40,7 +44,40 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Docusaurus uses trailing slashes (/docs/); avoid Next stripping them before the dev proxy.
+  skipTrailingSlashRedirect: true,
   allowedDevOrigins: ["127.0.0.1"],
+  async redirects() {
+    if (!isDev) {
+      return [
+        {
+          source: "/docs",
+          destination: "/docs/",
+          permanent: true,
+        },
+      ];
+    }
+    return [];
+  },
+  async rewrites() {
+    if (isDev) {
+      return [
+        {
+          source: "/docs",
+          destination: `${docsDevOrigin}/docs/`,
+        },
+        {
+          source: "/docs/",
+          destination: `${docsDevOrigin}/docs/`,
+        },
+        {
+          source: "/docs/:path*",
+          destination: `${docsDevOrigin}/docs/:path*`,
+        },
+      ];
+    }
+    return [];
+  },
   async headers() {
     return [
       {

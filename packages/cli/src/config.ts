@@ -106,9 +106,7 @@ export async function saveConfig(config: Partial<Config>): Promise<void> {
   const next: Config = {
     ...current,
     ...config,
-    apiUrl: config.apiUrl
-      ? normalizeApiUrl(config.apiUrl)
-      : current.apiUrl,
+    apiUrl: config.apiUrl ? normalizeApiUrl(config.apiUrl) : current.apiUrl,
   };
   await fs.writeJson(CONFIG_FILE, next, { spaces: 2 });
 }

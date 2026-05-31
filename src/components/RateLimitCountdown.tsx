@@ -43,8 +43,7 @@ export function RateLimitCountdown({
             You can create another link in{" "}
             <span className="font-semibold tabular-nums">
               {formatRetryCountdown(retryAtMs, now)}
-            </span>
-            {" "}
+            </span>{" "}
             <span className="text-xs opacity-80">
               (at {new Date(retryAtMs).toLocaleTimeString()})
             </span>

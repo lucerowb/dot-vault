@@ -9,10 +9,7 @@ import { limitDownload } from "@/lib/ratelimit";
 import { vaultRateLimitedResponse } from "@/lib/vault-rate-limit-response";
 import { VaultTokenSchema } from "@/lib/schemas";
 import type { VaultRecord } from "@/types/vault.types";
-import {
-  buildVaultAccessEvent,
-  recordVaultAccess,
-} from "@/lib/vault-access";
+import { buildVaultAccessEvent, recordVaultAccess } from "@/lib/vault-access";
 import {
   deleteVaultKeys,
   fetchVaultAtomic,

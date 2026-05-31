@@ -1,10 +1,6 @@
 /** Browser-local registry of quick shares created from a project's env UI. */
 
-export type EnvQuickShareStatus =
-  | "active"
-  | "expired"
-  | "consumed"
-  | "revoked";
+export type EnvQuickShareStatus = "active" | "expired" | "consumed" | "revoked";
 
 export type EnvQuickShareRecord = {
   token: string;
@@ -34,8 +30,7 @@ function normalizeRecord(raw: EnvQuickShareRecord): EnvQuickShareRecord {
   return {
     ...raw,
     status,
-    ttlSeconds:
-      raw.ttlSeconds ?? Math.max(0, raw.expiresAt - raw.createdAt),
+    ttlSeconds: raw.ttlSeconds ?? Math.max(0, raw.expiresAt - raw.createdAt),
   };
 }
 
@@ -60,9 +55,7 @@ const snapshotCache = new Map<
 >();
 
 function snapshotSignature(records: EnvQuickShareRecord[]): string {
-  return records
-    .map((r) => `${r.token}:${r.expiresAt}:${r.status}`)
-    .join("|");
+  return records.map((r) => `${r.token}:${r.expiresAt}:${r.status}`).join("|");
 }
 
 function invalidateSnapshotCache(projectId: string): void {
@@ -130,7 +123,9 @@ export function saveEnvQuickShares(
 
 export function addEnvQuickShare(
   projectId: string,
-  record: Omit<EnvQuickShareRecord, "status"> & { status?: EnvQuickShareStatus },
+  record: Omit<EnvQuickShareRecord, "status"> & {
+    status?: EnvQuickShareStatus;
+  },
 ): EnvQuickShareRecord {
   const full: EnvQuickShareRecord = normalizeRecord({
     ...record,
