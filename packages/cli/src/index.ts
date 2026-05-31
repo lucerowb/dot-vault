@@ -2,8 +2,10 @@
 
 import { program } from "commander";
 import chalk from "chalk";
-import inquirer from "inquirer";
-import ora from "ora";
+import { createSpinner } from "./spinner.js";
+import { playLogoAnimation } from "./pretext-visual.js";
+import fs from "fs-extra";
+import path from "path";
 import { api } from "./api.js";
 import {
   getConfig,
@@ -21,712 +23,475 @@ import {
   maskSecrets,
   mergeEnvContent,
 } from "./utils.js";
-import fs from "fs-extra";
-import path from "path";
+import { resolveProjectForCommand } from "./resolve-project.js";
+import {
+  promptApiUrl,
+  promptConfirm,
+  promptEmail,
+  promptEnvFile,
+  promptEnvLabel,
+  promptOverwriteAction,
+  promptPassword,
+  promptProject,
+} from "./prompts.js";
+import {
+  CLI_BIN,
+  getCliVersion,
+  hint,
+  info,
+  printBanner,
+  printCheatsheet,
+  printNextSteps,
+  printRandomTip,
+  success,
+} from "./ui.js";
+import { runInteractiveMenu } from "./menu.js";
+import { printCompletionScript } from "./completion.js";
 
-program
-  .name("dot-vault")
-  .description("CLI for DotVault - secure environment variable management")
-  .version("0.1.0");
+function handleError(error: unknown): never {
+  console.error(
+    chalk.red("\n  ✗"),
+    error instanceof Error ? error.message : error,
+  );
+  hint(`Run \`${CLI_BIN} help\` or just \`${CLI_BIN}\` for the menu.`);
+  console.log();
+  process.exit(1);
+}
 
-// Login command
-program
-  .command("login")
-  .description("Authenticate with your DotVault account")
-  .option("-e, --email <email>", "Email address")
-  .option("-p, --password <password>", "Password")
-  .option("--api-url <url>", "Custom API URL")
-  .action(async (options) => {
-    try {
-      await getConfig();
+function registerProgram(): void {
+  program
+    .name(CLI_BIN)
+    .description(
+      "DotVault CLI — sync .env secrets with your encrypted cloud vault",
+    )
+    .version(getCliVersion())
+    .addHelpText(
+      "before",
+      chalk.gray(
+        `\n  Tip: run \`${CLI_BIN}\` with no arguments for the interactive menu.\n`,
+      ),
+    )
+    .addHelpText("after", () => {
+      printCheatsheet();
+      return "";
+    });
 
-      if (options.apiUrl) {
-        await saveConfig({ apiUrl: options.apiUrl });
-      } else {
+  program
+    .command("login")
+    .aliases(["li", "signin"])
+    .description("Sign in to DotVault")
+    .option("-e, --email <email>", "Email")
+    .option("-p, --password <password>", "Password")
+    .option("--api-url <url>", "Server URL (saved to ~/.dotvault/config.json)")
+    .action(async (options) => {
+      try {
+        await printBanner(true);
         const cfg = await getConfig();
-        await saveConfig({ apiUrl: cfg.apiUrl });
-      }
 
-      const email =
-        options.email ||
-        (
-          await inquirer.prompt([
-            {
-              type: "input",
-              name: "email",
-              message: "Email:",
-              validate: (input) =>
-                input.includes("@") || "Please enter a valid email",
-            },
-          ])
-        ).email;
+        if (options.apiUrl) {
+          await saveConfig({
+            apiUrl: options.apiUrl.trim().replace(/\/$/, ""),
+          });
+        } else if (!cfg.apiToken) {
+          const url = await promptApiUrl(cfg.apiUrl || resolveDefaultApiUrl());
+          await saveConfig({ apiUrl: url });
+        } else {
+          await saveConfig({ apiUrl: cfg.apiUrl });
+        }
 
-      const password =
-        options.password ||
-        (
-          await inquirer.prompt([
-            {
-              type: "password",
-              name: "password",
-              message: "Password:",
-              mask: "*",
-              validate: (input) =>
-                input.length >= 8 || "Password must be at least 8 characters",
-            },
-          ])
-        ).password;
+        const email = options.email ?? (await promptEmail());
+        const pass = options.password ?? (await promptPassword());
 
-      const spinner = ora("Authenticating...").start();
-
-      try {
-        const { token } = await api.login(email, password);
-        await saveConfig({ apiToken: token });
-        spinner.succeed(chalk.green("Successfully authenticated!"));
+        const spinner = createSpinner("Signing you in…");
+        try {
+          const { token } = await api.login(email, pass);
+          await saveConfig({ apiToken: token });
+          spinner.stop();
+          success("You're in!");
+          printNextSteps("login");
+          printRandomTip();
+        } catch (error) {
+          spinner.fail(chalk.red("Sign-in failed"));
+          handleError(error);
+        }
       } catch (error) {
-        spinner.fail(
-          chalk.red(
-            `Authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
-        );
-        process.exit(1);
+        handleError(error);
       }
-    } catch (error) {
-      console.error(
-        chalk.red("Error:"),
-        error instanceof Error ? error.message : error,
+    });
+
+  program
+    .command("logout")
+    .aliases(["lo", "signout"])
+    .description("Sign out and clear saved token")
+    .action(async () => {
+      await clearConfig();
+      success("Signed out. Run `dv login` when you're back.");
+      console.log();
+    });
+
+  program
+    .command("status")
+    .aliases(["st", "whoami"])
+    .description("Show server URL and auth status")
+    .action(async () => {
+      await printBanner(true);
+      const config = await getConfig();
+      console.log(chalk.bold("  Configuration"));
+      console.log(chalk.gray("  " + "─".repeat(36)));
+      console.log(`  Server   ${chalk.cyan(config.apiUrl)}`);
+      console.log(
+        `  Auth     ${config.apiToken ? chalk.green("signed in") : chalk.yellow("not signed in")}`,
       );
-      process.exit(1);
-    }
-  });
 
-// Logout command
-program
-  .command("logout")
-  .description("Remove stored credentials")
-  .action(async () => {
-    await clearConfig();
-    console.log(chalk.green("Logged out successfully"));
-  });
-
-// Status command
-program
-  .command("status")
-  .description("Check authentication status")
-  .action(async () => {
-    const config = await getConfig();
-
-    console.log(chalk.bold("\nDotVault Configuration:"));
-    console.log(chalk.gray("─".repeat(40)));
-    console.log(`API URL: ${chalk.cyan(config.apiUrl)}`);
-    console.log(
-      `Authenticated: ${config.apiToken ? chalk.green("Yes") : chalk.red("No")}`,
-    );
-
-    if (config.apiToken) {
-      const spinner = ora("Validating token...").start();
-      try {
-        await api.getToken();
-        spinner.succeed(chalk.green("Token is valid"));
-      } catch {
-        spinner.fail(chalk.red("Token is invalid or expired"));
-        console.log(chalk.yellow('Run "dotvault login" to re-authenticate'));
+      if (config.apiToken) {
+        const spinner = createSpinner("Checking session…");
+        try {
+          await api.getToken();
+          spinner.succeed(chalk.green("  Session is valid"));
+        } catch {
+          spinner.fail(chalk.red("  Session expired"));
+          hint(`Run \`${CLI_BIN} login\` to refresh.`);
+        }
+      } else {
+        hint(`Run \`${CLI_BIN} login --api-url <your-server>\``);
       }
-    }
+      console.log();
+      printRandomTip();
+    });
 
-    console.log();
-  });
-
-// List projects command
-program
-  .command("projects")
-  .alias("ls")
-  .description("List your projects")
-  .action(async () => {
-    try {
-      await requireAuth();
-      const spinner = ora("Fetching projects...").start();
-
+  program
+    .command("projects")
+    .aliases(["ls", "p", "list-projects"])
+    .description("List your projects")
+    .action(async () => {
       try {
+        await requireAuth();
+        const spinner = createSpinner("Fetching projects…");
         const projects = await api.listProjects();
         spinner.stop();
 
         if (projects.length === 0) {
-          console.log(chalk.yellow("No projects found"));
+          console.log(chalk.yellow("\n  No projects yet."));
           console.log(
-            chalk.gray(`Create one at ${resolveDefaultApiUrl()}/dashboard`),
+            chalk.gray(`  → ${resolveDefaultApiUrl()}/dashboard\n`),
           );
           return;
         }
 
         printProjectTable(projects);
+        hint(`List envs: \`${CLI_BIN} e <slug>\`  ·  Pull: \`${CLI_BIN} pl production -p <slug>\``);
+        printNextSteps("projects");
       } catch (error) {
-        spinner.fail(
-          chalk.red(
-            `Failed to fetch projects: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
-        );
-        process.exit(1);
+        handleError(error);
       }
-    } catch (error) {
-      console.error(
-        chalk.red("Error:"),
-        error instanceof Error ? error.message : error,
-      );
-      process.exit(1);
-    }
-  });
+    });
 
-// List environments command
-program
-  .command("envs [project]")
-  .alias("list")
-  .description("List environment files in a project")
-  .action(async (projectSlug) => {
-    try {
-      await requireAuth();
-
-      let projectId = projectSlug;
-
-      // If no project specified, list all projects and ask
-      if (!projectId) {
-        const spinner = ora("Fetching projects...").start();
-        const projects = await api.listProjects();
-        spinner.stop();
-
-        if (projects.length === 0) {
-          console.log(chalk.yellow("No projects found"));
-          return;
-        }
-
-        const { selectedProject } = await inquirer.prompt([
-          {
-            type: "list",
-            name: "selectedProject",
-            message: "Select a project:",
-            choices: projects.map((p) => ({
-              name: `${p.name} (${p.slug})`,
-              value: p.id,
-            })),
-          },
-        ]);
-
-        projectId = selectedProject;
-      }
-
-      const spinner = ora("Fetching environments...").start();
-
+  program
+    .command("envs [project]")
+    .aliases(["e", "env", "list"])
+    .description("List environment labels in a project")
+    .action(async (projectSlug) => {
       try {
+        await requireAuth();
+        const projectId = await resolveProjectForCommand(projectSlug, "envs");
+        const spinner = createSpinner("Loading environments…");
         const envs = await api.listEnvs(projectId);
         spinner.stop();
 
         if (envs.length === 0) {
-          console.log(chalk.yellow("No environment files found"));
+          console.log(chalk.yellow("\n  No environments yet."));
+          hint(`Push one: \`${CLI_BIN} ps .env -p <slug>\``);
+          console.log();
           return;
         }
 
         printEnvTable(envs);
+        printNextSteps("envs");
       } catch (error) {
-        spinner.fail(
-          chalk.red(
-            `Failed to fetch environments: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
+        handleError(error);
+      }
+    });
+
+  program
+    .command("pull [label]")
+    .aliases(["pl", "get", "down"])
+    .description("Download an environment to a local file")
+    .option("-p, --project <ref>", "Project slug, name, or id")
+    .option("-o, --output <file>", "Output path", ".env")
+    .option("-f, --force", "Overwrite without asking")
+    .option("--merge", "Merge into existing file")
+    .action(async (labelArg, options) => {
+      try {
+        await requireAuth();
+        const projectId = await resolveProjectForCommand(
+          options.project,
+          "pull",
         );
-        process.exit(1);
-      }
-    } catch (error) {
-      console.error(
-        chalk.red("Error:"),
-        error instanceof Error ? error.message : error,
-      );
-      process.exit(1);
-    }
-  });
+        const label =
+          labelArg ?? (await promptEnvLabel(projectId, "pull"));
 
-// Pull command
-program
-  .command("pull <label>")
-  .description("Download environment file from DotVault")
-  .option("-p, --project <slug>", "Project slug")
-  .option("-o, --output <file>", "Output file path")
-  .option("-f, --force", "Overwrite existing file without confirmation")
-  .option("--merge", "Merge with existing .env file instead of overwriting")
-  .action(async (label, options) => {
-    try {
-      await requireAuth();
+        const outputFile = options.output || ".env";
+        const outputPath = path.resolve(outputFile);
 
-      // Get project
-      let projectId = options.project;
-      if (!projectId) {
-        const spinner = ora("Fetching projects...").start();
-        const projects = await api.listProjects();
-        spinner.stop();
-
-        if (projects.length === 0) {
-          console.log(chalk.yellow("No projects found"));
-          return;
-        }
-
-        if (projects.length === 1) {
-          const firstProject = projects[0]!;
-          projectId = firstProject.id;
-          console.log(chalk.gray(`Using project: ${firstProject.name}`));
-        } else {
-          const { selectedProject } = await inquirer.prompt([
-            {
-              type: "list",
-              name: "selectedProject",
-              message: "Select a project:",
-              choices: projects.map((p) => ({
-                name: `${p.name} (${p.slug})`,
-                value: p.id,
-              })),
-            },
-          ]);
-          projectId = selectedProject;
-        }
-      }
-
-      // Determine output file
-      const outputFile = options.output || ".env";
-      const outputPath = path.resolve(outputFile);
-
-      // Check if file exists
-      if (await fs.pathExists(outputPath)) {
-        if (!options.force && !options.merge) {
-          const { action } = await inquirer.prompt([
-            {
-              type: "list",
-              name: "action",
-              message: `File ${outputFile} already exists. What would you like to do?`,
-              choices: [
-                { name: "Merge (add new vars, keep existing)", value: "merge" },
-                { name: "Overwrite", value: "overwrite" },
-                { name: "Cancel", value: "cancel" },
-              ],
-            },
-          ]);
-
+        if (
+          (await fs.pathExists(outputPath)) &&
+          !options.force &&
+          !options.merge
+        ) {
+          const action = await promptOverwriteAction(outputFile);
           if (action === "cancel") {
-            console.log(chalk.gray("Operation cancelled"));
+            info("Cancelled.");
             return;
           }
-
           options.merge = action === "merge";
           options.force = action === "overwrite";
         }
-      }
 
-      const spinner = ora(`Pulling ${label}...`).start();
-
-      try {
+        const spinner = createSpinner(`Pulling ${chalk.cyan(label)}…`);
         const { content } = await api.getEnv(projectId, label);
         spinner.stop();
 
         let finalContent = content;
-
-        // Merge if requested and file exists
         if (options.merge && (await fs.pathExists(outputPath))) {
           const existing = await fs.readFile(outputPath, "utf-8");
           finalContent = mergeEnvContent(existing, content);
-          console.log(chalk.gray("Merged with existing file"));
+          info("Merged with your existing file.");
         }
 
         await writeEnvFile(outputPath, finalContent);
-
+        success(`Saved to ${outputFile}`);
+        console.log(chalk.gray("\n  Preview (masked):\n"));
         console.log(
-          chalk.green(`✓ Successfully pulled ${label} to ${outputFile}`),
+          maskSecrets(finalContent)
+            .split("\n")
+            .map((l) => `  ${l}`)
+            .join("\n"),
         );
-
-        // Show preview
-        console.log(chalk.gray("\nPreview:"));
-        console.log(maskSecrets(finalContent));
+        console.log();
+        printNextSteps("pull");
       } catch (error) {
-        spinner.fail(
-          chalk.red(
-            `Failed to pull: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
-        );
-        process.exit(1);
+        handleError(error);
       }
-    } catch (error) {
-      console.error(
-        chalk.red("Error:"),
-        error instanceof Error ? error.message : error,
-      );
-      process.exit(1);
-    }
-  });
+    });
 
-// Push command
-program
-  .command("push [file]")
-  .description("Upload environment file to DotVault")
-  .option("-p, --project <slug>", "Project slug")
-  .option("-l, --label <name>", "Environment label (e.g., staging, production)")
-  .option("-f, --force", "Overwrite existing without confirmation")
-  .action(async (file, options) => {
-    try {
-      await requireAuth();
+  program
+    .command("push [file]")
+    .aliases(["ps", "up", "put"])
+    .description("Upload a local .env file to the vault")
+    .option("-p, --project <ref>", "Project slug, name, or id")
+    .option("-l, --label <name>", "Environment label")
+    .option("-f, --force", "Overwrite without asking")
+    .action(async (file, options) => {
+      try {
+        await requireAuth();
 
-      // Detect or use provided file
-      let envFile = file;
-      if (!envFile) {
         const detected = detectEnvFiles();
-        if (detected.length === 0) {
-          console.log(chalk.red("No .env file found in current directory"));
-          console.log(chalk.gray("Specify a file: dotvault push .env.local"));
-          return;
+        const envFile = file ?? (await promptEnvFile(detected));
+        const content = await readEnvFile(envFile);
+        const projectId = await resolveProjectForCommand(options.project, "push");
+
+        let label = options.label;
+        if (!label) {
+          const basename = path.basename(envFile);
+          if (basename.startsWith(".env.")) {
+            label = basename.slice(5);
+            info(`Label from filename: ${chalk.cyan(label)}`);
+          } else {
+            label = await promptEnvLabel(projectId, "push");
+          }
         }
 
-        if (detected.length === 1) {
-          envFile = detected[0];
-          console.log(chalk.gray(`Using detected file: ${envFile}`));
-        } else {
-          const { selectedFile } = await inquirer.prompt([
-            {
-              type: "list",
-              name: "selectedFile",
-              message: "Select an environment file:",
-              choices: detected,
-            },
-          ]);
-          envFile = selectedFile;
-        }
-      }
-
-      // Read file
-      const content = await readEnvFile(envFile);
-
-      // Get project
-      let projectId = options.project;
-      if (!projectId) {
-        const spinner = ora("Fetching projects...").start();
-        const projects = await api.listProjects();
+        const spinner = createSpinner("Checking vault…");
+        const existingEnvs = await api.listEnvs(projectId);
+        const existing = existingEnvs.find((e) => e.label === label);
         spinner.stop();
 
-        if (projects.length === 0) {
-          console.log(chalk.yellow("No projects found"));
-          console.log(
-            chalk.gray(`Create one at ${resolveDefaultApiUrl()}/dashboard`),
+        if (existing && !options.force) {
+          const ok = await promptConfirm(
+            `Overwrite "${label}" in the vault?`,
+            false,
           );
-          return;
+          if (!ok) {
+            info("Cancelled.");
+            return;
+          }
         }
 
-        if (projects.length === 1) {
-          const firstProject = projects[0]!;
-          projectId = firstProject.id;
-          console.log(chalk.gray(`Using project: ${firstProject.name}`));
-        } else {
-          const { selectedProject } = await inquirer.prompt([
-            {
-              type: "list",
-              name: "selectedProject",
-              message: "Select a project:",
-              choices: projects.map((p) => ({
-                name: `${p.name} (${p.slug})`,
-                value: p.id,
-              })),
-            },
-          ]);
-          projectId = selectedProject;
-        }
-      }
-
-      // Get or infer label
-      let label = options.label;
-      if (!label) {
-        // Infer from filename
-        const basename = path.basename(envFile);
-        if (basename === ".env") {
-          const { inferredLabel } = await inquirer.prompt([
-            {
-              type: "input",
-              name: "inferredLabel",
-              message:
-                "Environment label (e.g., development, staging, production):",
-              default: "development",
-            },
-          ]);
-          label = inferredLabel;
-        } else if (basename.startsWith(".env.")) {
-          label = basename.slice(5);
-          console.log(chalk.gray(`Using inferred label: ${label}`));
-        } else {
-          const { inferredLabel } = await inquirer.prompt([
-            {
-              type: "input",
-              name: "inferredLabel",
-              message: "Environment label:",
-              default: path.basename(envFile, path.extname(envFile)),
-            },
-          ]);
-          label = inferredLabel;
-        }
-      }
-
-      // Check if env already exists
-      const spinner = ora("Checking existing environments...").start();
-      const existingEnvs = await api.listEnvs(projectId);
-      const existing = existingEnvs.find((e) => e.label === label);
-      spinner.stop();
-
-      if (existing && !options.force) {
-        const { confirm } = await inquirer.prompt([
-          {
-            type: "confirm",
-            name: "confirm",
-            message: `Environment "${label}" already exists. Overwrite?`,
-            default: false,
-          },
-        ]);
-
-        if (!confirm) {
-          console.log(chalk.gray("Operation cancelled"));
-          return;
-        }
-      }
-
-      // Upload
-      const uploadSpinner = ora(
-        existing ? `Updating ${label}...` : `Creating ${label}...`,
-      ).start();
-
-      try {
+        const uploadSpinner = createSpinner(
+          existing ? `Updating ${label}…` : `Creating ${label}…`,
+        );
         if (existing) {
           await api.updateEnv(projectId, label, content);
-          uploadSpinner.succeed(chalk.green(`✓ Updated ${label}`));
         } else {
           await api.createEnv(projectId, label, content);
-          uploadSpinner.succeed(chalk.green(`✓ Created ${label}`));
         }
-
-        console.log(chalk.gray(`\nPushed ${envFile} to ${label}`));
-      } catch (error) {
-        uploadSpinner.fail(
-          chalk.red(
-            `Failed to push: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
+        uploadSpinner.succeed(
+          existing ? `Updated ${label}` : `Created ${label}`,
         );
-        process.exit(1);
+        success(`Uploaded ${envFile} → ${label}`);
+        printNextSteps("push");
+      } catch (error) {
+        handleError(error);
       }
-    } catch (error) {
-      console.error(
-        chalk.red("Error:"),
-        error instanceof Error ? error.message : error,
-      );
-      process.exit(1);
-    }
-  });
+    });
 
-// Delete command
-program
-  .command("delete <label>")
-  .description("Delete an environment file from DotVault")
-  .option("-p, --project <slug>", "Project slug")
-  .option("-f, --force", "Skip confirmation")
-  .action(async (label, options) => {
-    try {
-      await requireAuth();
-
-      // Get project
-      let projectId = options.project;
-      if (!projectId) {
-        const spinner = ora("Fetching projects...").start();
-        const projects = await api.listProjects();
-        spinner.stop();
-
-        if (projects.length === 0) {
-          console.log(chalk.yellow("No projects found"));
-          return;
-        }
-
-        if (projects.length === 1) {
-          const firstProject = projects[0]!;
-          projectId = firstProject.id;
-        } else {
-          const { selectedProject } = await inquirer.prompt([
-            {
-              type: "list",
-              name: "selectedProject",
-              message: "Select a project:",
-              choices: projects.map((p) => ({
-                name: `${p.name} (${p.slug})`,
-                value: p.id,
-              })),
-            },
-          ]);
-          projectId = selectedProject;
-        }
-      }
-
-      if (!options.force) {
-        const { confirm } = await inquirer.prompt([
-          {
-            type: "confirm",
-            name: "confirm",
-            message: chalk.red(`Are you sure you want to delete "${label}"?`),
-            default: false,
-          },
-        ]);
-
-        if (!confirm) {
-          console.log(chalk.gray("Operation cancelled"));
-          return;
-        }
-      }
-
-      const spinner = ora(`Deleting ${label}...`).start();
-
+  program
+    .command("delete <label>")
+    .aliases(["rm", "del"])
+    .description("Delete an environment from the vault")
+    .option("-p, --project <ref>", "Project slug, name, or id")
+    .option("-f, --force", "Skip confirmation")
+    .action(async (label, options) => {
       try {
-        await api.deleteEnv(projectId, label);
-        spinner.succeed(chalk.green(`✓ Deleted ${label}`));
-      } catch (error) {
-        spinner.fail(
-          chalk.red(
-            `Failed to delete: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
+        await requireAuth();
+        const projectId = await resolveProjectForCommand(
+          options.project,
+          "delete",
         );
-        process.exit(1);
-      }
-    } catch (error) {
-      console.error(
-        chalk.red("Error:"),
-        error instanceof Error ? error.message : error,
-      );
-      process.exit(1);
-    }
-  });
 
-// Init command - setup wizard
-program
-  .command("init")
-  .description("Interactive setup wizard")
-  .action(async () => {
-    console.log(chalk.bold.blue("\n🛡️  DotVault Setup Wizard\n"));
-
-    // Check auth
-    const config = await getConfig();
-    if (!config.apiToken) {
-      console.log(chalk.yellow("You need to login first.\n"));
-
-      const { email, password } = await inquirer.prompt([
-        {
-          type: "input",
-          name: "email",
-          message: "Email:",
-          validate: (input) =>
-            input.includes("@") || "Please enter a valid email",
-        },
-        {
-          type: "password",
-          name: "password",
-          message: "Password:",
-          mask: "*",
-          validate: (input) =>
-            input.length >= 8 || "Password must be at least 8 characters",
-        },
-      ]);
-
-      const spinner = ora("Authenticating...").start();
-      try {
-        const { token } = await api.login(email, password);
-        await saveConfig({ apiToken: token });
-        spinner.succeed(chalk.green("Authenticated!"));
-      } catch (error) {
-        spinner.fail(
-          chalk.red(
-            `Authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-          ),
-        );
-        process.exit(1);
-      }
-    } else {
-      console.log(chalk.green("✓ Already authenticated\n"));
-    }
-
-    // Check for existing .env files
-    const detected = detectEnvFiles();
-    if (detected.length > 0) {
-      console.log(chalk.gray(`Found ${detected.length} environment file(s):`));
-      detected.forEach((f) => console.log(`  • ${f}`));
-      console.log();
-
-      const { shouldPush } = await inquirer.prompt([
-        {
-          type: "confirm",
-          name: "shouldPush",
-          message: "Would you like to push these to DotVault?",
-          default: true,
-        },
-      ]);
-
-      if (shouldPush) {
-        // Get projects
-        const spinner = ora("Fetching projects...").start();
-        const projects = await api.listProjects();
-        spinner.stop();
-
-        let projectId: string;
-        if (projects.length === 0) {
-          console.log(chalk.yellow("\nNo projects found."));
-          console.log(
-            chalk.gray(`Create one at ${resolveDefaultApiUrl()}/dashboard\n`),
+        if (!options.force) {
+          const ok = await promptConfirm(
+            chalk.red(`Delete "${label}" from the vault?`),
+            false,
           );
-          return;
-        } else if (projects.length === 1) {
-          const firstProject = projects[0]!;
-          projectId = firstProject.id;
-          console.log(chalk.gray(`\nUsing project: ${firstProject.name}`));
-        } else {
-          const { selectedProject } = await inquirer.prompt([
-            {
-              type: "list",
-              name: "selectedProject",
-              message: "Select a project:",
-              choices: projects.map((p) => ({
-                name: `${p.name} (${p.slug})`,
-                value: p.id,
-              })),
-            },
-          ]);
-          projectId = selectedProject;
+          if (!ok) {
+            info("Cancelled.");
+            return;
+          }
         }
 
-        // Push each file
-        for (const file of detected) {
-          const content = await readEnvFile(file);
-          const basename = path.basename(file);
-          const label = basename === ".env" ? "development" : basename.slice(5);
+        const spinner = createSpinner(`Deleting ${label}…`);
+        await api.deleteEnv(projectId, label);
+        spinner.succeed(chalk.green(`Deleted ${label}`));
+        console.log();
+      } catch (error) {
+        handleError(error);
+      }
+    });
 
-          const pushSpinner = ora(`Pushing ${file} as "${label}"...`).start();
-          try {
-            const existingEnvs = await api.listEnvs(projectId);
-            const existing = existingEnvs.find((e) => e.label === label);
+  program
+    .command("init")
+    .aliases(["setup", "start"])
+    .description("Interactive setup wizard")
+    .action(async () => {
+      await printBanner(false, true);
+      hint("We'll sign you in and optionally upload local .env files.");
 
-            if (existing) {
-              await api.updateEnv(projectId, label, content);
-              pushSpinner.succeed(chalk.green(`Updated ${label}`));
-            } else {
-              await api.createEnv(projectId, label, content);
-              pushSpinner.succeed(chalk.green(`Created ${label}`));
+      const config = await getConfig();
+      if (!config.apiToken) {
+        const url = await promptApiUrl(
+          config.apiUrl || resolveDefaultApiUrl(),
+        );
+        await saveConfig({ apiUrl: url });
+        const email = await promptEmail();
+        const pass = await promptPassword();
+        const spinner = createSpinner("Signing in…");
+        try {
+          const { token } = await api.login(email, pass);
+          await saveConfig({ apiToken: token });
+          spinner.succeed("Signed in");
+        } catch (error) {
+          spinner.fail("Sign-in failed");
+          handleError(error);
+        }
+      } else {
+        success("Already signed in");
+      }
+
+      const detected = detectEnvFiles();
+      if (detected.length > 0) {
+        console.log(chalk.gray("\n  Local files:"));
+        detected.forEach((f) => console.log(`    • ${f}`));
+        console.log();
+
+        const shouldPush = await promptConfirm(
+          "Upload these to DotVault?",
+          true,
+        );
+
+        if (shouldPush) {
+          const spinner = createSpinner("Loading projects…");
+          const projects = await api.listProjects();
+          spinner.stop();
+
+          if (projects.length === 0) {
+            console.log(chalk.yellow("\n  No projects — create one in the dashboard first.\n"));
+            return;
+          }
+
+          const projectId = await promptProject(projects, "upload");
+
+          for (const file of detected) {
+            const content = await readEnvFile(file);
+            const basename = path.basename(file);
+            const label =
+              basename === ".env" ? "development" : basename.slice(5);
+            const pushSpinner = createSpinner(`Uploading ${file} as ${label}…`);
+            try {
+              const existingEnvs = await api.listEnvs(projectId);
+              const existing = existingEnvs.find((e) => e.label === label);
+              if (existing) {
+                await api.updateEnv(projectId, label, content);
+              } else {
+                await api.createEnv(projectId, label, content);
+              }
+              pushSpinner.succeed(label);
+            } catch (error) {
+              pushSpinner.fail(
+                `${file}: ${error instanceof Error ? error.message : "failed"}`,
+              );
             }
-          } catch (error) {
-            pushSpinner.fail(
-              chalk.red(
-                `Failed to push ${file}: ${error instanceof Error ? error.message : "Unknown error"}`,
-              ),
-            );
           }
         }
       }
-    }
 
-    console.log(chalk.bold.green("\n✓ Setup complete!"));
-    console.log(chalk.gray("\nUseful commands:"));
-    console.log("  dotvault push     Upload .env file");
-    console.log("  dotvault pull     Download .env file");
-    console.log("  dotvault envs     List environments");
-    console.log();
-  });
+      console.log(chalk.bold.green("\n  ✓ Setup complete\n"));
+      printNextSteps("init");
+      printRandomTip();
+    });
 
-program.parse();
+  program
+    .command("completion [shell]")
+    .description("Print shell completion script (bash | zsh)")
+    .action((shell = "zsh") => {
+      printCompletionScript(shell);
+      hint(`Add to your shell: eval "$(dv completion ${shell})"`);
+    });
+
+  program
+    .command("logo")
+    .aliases(["art", "banner"])
+    .description("Play the typographic ASCII logo animation")
+    .option("-n, --frames <n>", "Animation frames", "16")
+    .action(async (options) => {
+      const frames = Math.min(40, Math.max(4, Number(options.frames) || 16));
+      await playLogoAnimation(frames);
+    });
+
+  program
+    .command("help")
+    .aliases(["h", "?"])
+    .description("Show command cheatsheet")
+    .action(async () => {
+      await printBanner(false, false);
+      printCheatsheet();
+    });
+}
+
+async function main(): Promise<void> {
+  registerProgram();
+
+  const args = process.argv.slice(2);
+
+  if (args.length === 0) {
+    const action = await runInteractiveMenu();
+    await program.parseAsync([process.argv[0]!, CLI_BIN, action]);
+    return;
+  }
+
+  await program.parseAsync(process.argv);
+}
+
+main().catch((err) => {
+  handleError(err);
+});

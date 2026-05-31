@@ -1,12 +1,15 @@
 import fetch from "node-fetch";
 import { getConfig } from "./config.js";
 
-interface Project {
+export interface Project {
   id: string;
   name: string;
   slug: string;
   createdAt: string;
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface ProjectEnv {
   id: string;
@@ -139,6 +142,35 @@ class ApiClient {
   // Projects
   async listProjects(): Promise<Project[]> {
     return this.request<Project[]>("/projects");
+  }
+
+  /** Resolve project UUID from id, slug, or display name. */
+  async resolveProjectId(ref: string): Promise<string> {
+    const trimmed = ref.trim();
+    if (UUID_RE.test(trimmed)) {
+      return trimmed;
+    }
+
+    const projects = await this.listProjects();
+    const needle = trimmed.toLowerCase();
+    const match = projects.find(
+      (p) =>
+        p.slug.toLowerCase() === needle ||
+        p.name.toLowerCase() === needle ||
+        p.id === trimmed,
+    );
+
+    if (!match) {
+      const hints =
+        projects.length > 0
+          ? projects.map((p) => p.slug).join(", ")
+          : "none — create one in the dashboard";
+      throw new Error(
+        `Project not found: "${ref}". Run \`dot-vault projects\` to see slugs (${hints}).`,
+      );
+    }
+
+    return match.id;
   }
 
   async getProject(id: string): Promise<Project> {

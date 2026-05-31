@@ -204,9 +204,10 @@ The unscoped name `dot-vault` is blocked by npm (too similar to `dotvault`). The
 # Run once (no global install)
 npx @lucerowb/dot-vault@latest login --api-url https://your-dotvault.example.com
 
-# Or install globally (provides `dot-vault` and `dotvault` commands)
+# Or install globally (`dv`, `dot-vault`, `dotvault`)
 npm install -g @lucerowb/dot-vault
-dot-vault login --api-url https://your-dotvault.example.com
+dv login --api-url https://your-dotvault.example.com
+# Or run `dv` with no args for the interactive menu
 ```
 
 Full CLI docs: [`packages/cli/README.md`](./packages/cli/README.md) (shown on [npm](https://www.npmjs.com/package/@lucerowb/dot-vault)).
