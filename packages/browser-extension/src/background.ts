@@ -182,6 +182,40 @@ function apiBase(config: DotVaultConfig): string {
   return normalizeApiUrl(config.apiUrl);
 }
 
+/** Extension uses bearer tokens — omit cookies to avoid Better Auth origin checks on session cookies. */
+function apiFetch(
+  url: string,
+  options: RequestInit & { token?: string } = {},
+): Promise<Response> {
+  const { token, headers: initHeaders, ...rest } = options;
+  const headers = new Headers(initHeaders);
+  if (!headers.has("Content-Type") && rest.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(url, {
+    ...rest,
+    headers,
+    credentials: "omit",
+  });
+}
+
+function parseApiErrorBody(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object") return fallback;
+  const record = body as Record<string, unknown>;
+  if (typeof record.message === "string") return record.message;
+  if (typeof record.code === "string") return record.code;
+  const err = record.error;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === "string") return msg;
+  }
+  return fallback;
+}
+
 // Get configuration from storage
 async function getConfig(): Promise<DotVaultConfig> {
   const result = await chrome.storage.local.get("config");
@@ -226,15 +260,20 @@ async function login(
       return permission;
     }
 
-    const response = await fetch(`${apiBase(config)}/api/auth/sign-in/email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    const response = await apiFetch(
+      `${apiBase(config)}/api/auth/sign-in/email`,
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      },
+    );
 
     if (!response.ok) {
-      const error = await response.json();
-      return { success: false, error: error.message || "Login failed" };
+      const error = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: parseApiErrorBody(error, "Login failed"),
+      };
     }
 
     const data = await response.json();
@@ -286,11 +325,10 @@ async function syncProjects(): Promise<{
     }
 
     // Fetch projects
-    const projectsResponse = await fetch(`${apiBase(config)}/api/projects`, {
-      headers: {
-        Authorization: `Bearer ${config.apiToken}`,
-      },
-    });
+    const projectsResponse = await apiFetch(
+      `${apiBase(config)}/api/projects`,
+      { token: config.apiToken },
+    );
 
     if (!projectsResponse.ok) {
       return { success: false, error: "Failed to fetch projects" };
@@ -301,13 +339,9 @@ async function syncProjects(): Promise<{
 
     // Fetch envs for each project
     for (const project of projectsData.data || []) {
-      const envsResponse = await fetch(
+      const envsResponse = await apiFetch(
         `${apiBase(config)}/api/projects/${project.id}/envs`,
-        {
-          headers: {
-            Authorization: `Bearer ${config.apiToken}`,
-          },
-        },
+        { token: config.apiToken },
       );
 
       if (envsResponse.ok) {
@@ -344,13 +378,9 @@ async function getEnvContent(
       return { success: false, error: "Not authenticated" };
     }
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${apiBase(config)}/api/projects/${projectId}/envs/${envId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.apiToken}`,
-        },
-      },
+      { token: config.apiToken },
     );
 
     if (!response.ok) {

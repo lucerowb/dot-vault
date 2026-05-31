@@ -250,6 +250,10 @@ Usually the background service worker failed to start (often after loading an ol
 
 The footer link shows your configured instance host. On sign-in, set **Server URL** to your real dashboard origin (not a marketing domain unless that is where your app runs). When you click **Save & continue**, approve the Chrome permission prompt for that host (the prompt must be accepted from the popup click — if you see “must be called during a user gesture”, reload the extension and try again).
 
+### “Invalid origin” on sign-in
+
+Better Auth rejects extension requests when browser cookies are sent with a `chrome-extension://` origin. The extension uses `credentials: omit` and the server trusts `chrome-extension://*` (see `src/lib/auth.ts`). **Redeploy the web app** after pulling this change, then reload the extension and sign in again.
+
 ### “This function must be called during a user gesture”
 
 Chrome only allows the host-permission prompt from the popup click handler. Reload the extension at `chrome://extensions`, open the popup, and click **Save & continue** again. Do not deny the permission prompt.

@@ -205,7 +205,7 @@ Classic **Automation** tokens also work. A normal publish token without bypass 2
 1. Detect what changed (CLI vs extension)
 2. **Auto-bump** the CLI patch version if that version is already on npm or already tagged
 3. Commit the version bump to `main` with `[skip ci]`
-4. Publish GitHub Release assets and npm (`@lucerowb/dot-vault`) when `NPM_TOKEN` is set
+4. Publish GitHub Release assets; publish npm (`@lucerowb/dot-vault`) and update Homebrew **only when `packages/cli/**` changed**
 
 You only need to edit `packages/cli/package.json` version manually for **minor/major** releases; patch releases are automatic after code changes.
 

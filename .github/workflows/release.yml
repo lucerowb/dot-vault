@@ -1,7 +1,7 @@
 # Releases CLI + browser extension when packages/cli or packages/browser-extension change.
 #
-# Versioning: before publish, bumps packages/cli to the next patch if that version
-# already exists on npm or as a git tag — no manual version bump required for fixes.
+# npm publish + Homebrew run only when packages/cli/** changed (not on extension-only releases).
+# Versioning: CLI releases bump packages/cli; extension-only releases bump manifest.json only.
 #
 # Secrets: GITHUB_TOKEN (built-in), NPM_TOKEN (npm publish)
 
@@ -35,22 +35,70 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
-      cli_changed: ${{ steps.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch' }}
-      extension_changed: ${{ steps.changes.outputs.extension == 'true' || github.event_name == 'workflow_dispatch' }}
+      should_release: ${{ steps.flags.outputs.should_release }}
+      cli_changed: ${{ steps.flags.outputs.cli_changed }}
+      extension_changed: ${{ steps.flags.outputs.extension_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Resolve path filter base
+        id: base
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          elif git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            echo "ref=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: dorny/paths-filter@v3
         id: changes
-        if: github.event_name == 'push'
         with:
+          base: ${{ steps.base.outputs.ref }}
           filters: |
             cli:
               - 'packages/cli/**'
             extension:
               - 'packages/browser-extension/**'
+
+      - name: Set release flags
+        id: flags
+        run: |
+          set -euo pipefail
+          CLI="false"
+          EXT="false"
+
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+            PARENT="$(git rev-list -n 1 "${TAG}^" 2>/dev/null || true)"
+            if [ -n "$PARENT" ] && git diff --name-only "$PARENT" "$TAG" -- packages/cli/ | grep -q .; then
+              CLI="true"
+            fi
+            if [ -n "$PARENT" ] && git diff --name-only "$PARENT" "$TAG" -- packages/browser-extension/ | grep -q .; then
+              EXT="true"
+            fi
+            # Pinned tag without detectable parent: build both artifact types, npm only if CLI touched
+            if [ -z "$PARENT" ]; then
+              EXT="true"
+            fi
+          else
+            if [ "${{ steps.changes.outputs.cli }}" = "true" ]; then CLI="true"; fi
+            if [ "${{ steps.changes.outputs.extension }}" = "true" ]; then EXT="true"; fi
+          fi
+
+          SHOULD="false"
+          if [ -n "${{ github.event.inputs.tag }}" ] || [ "$CLI" = "true" ] || [ "$EXT" = "true" ]; then
+            SHOULD="true"
+          fi
+
+          echo "cli_changed=$CLI" >> "$GITHUB_OUTPUT"
+          echo "extension_changed=$EXT" >> "$GITHUB_OUTPUT"
+          echo "should_release=$SHOULD" >> "$GITHUB_OUTPUT"
+          echo "CLI changed: $CLI | Extension changed: $EXT | Release: $SHOULD"
 
       - uses: actions/setup-node@v4
         with:
@@ -59,8 +107,11 @@ jobs:
 
       - name: Resolve next release version
         id: version
+        if: steps.flags.outputs.should_release == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CLI_CHANGED: ${{ steps.flags.outputs.cli_changed }}
+          EXT_CHANGED: ${{ steps.flags.outputs.extension_changed }}
         run: |
           set -euo pipefail
 
@@ -79,17 +130,16 @@ jobs:
             TAG="${{ github.event.inputs.tag }}"
             VERSION="${TAG#v}"
             echo "Using pinned tag $TAG"
-          else
+          elif [ "$CLI_CHANGED" = "true" ]; then
             VERSION=$(node -p "require('./packages/cli/package.json').version")
             PUBLISHED="0.0.0"
             if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
               PUBLISHED=$(npm view @lucerowb/dot-vault version 2>/dev/null || echo "0.0.0")
             fi
 
-            echo "package.json version: $VERSION"
+            echo "CLI package.json version: $VERSION"
             echo "npm published version: $PUBLISHED"
 
-            # Need a new version if npm already has this one, or git tag exists
             needs_bump=false
             if [ "$VERSION" = "$PUBLISHED" ]; then
               needs_bump=true
@@ -108,12 +158,10 @@ jobs:
               fi
             fi
 
-            # Ensure tag slot is free
             while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
               VERSION=$(bump_patch "$VERSION")
             done
 
-            # Ensure npm slot is free (when token available)
             if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
               while npm view "@lucerowb/dot-vault@${VERSION}" version >/dev/null 2>&1; do
                 VERSION=$(bump_patch "$VERSION")
@@ -121,28 +169,66 @@ jobs:
             fi
 
             TAG="v${VERSION}"
+            export VERSION
             npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
-            echo "Resolved release version: $VERSION"
+            if [ "$EXT_CHANGED" = "true" ]; then
+              npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/browser-extension
+              node -e "
+                const fs = require('fs');
+                const p = 'packages/browser-extension/manifest.json';
+                const m = JSON.parse(fs.readFileSync(p, 'utf8'));
+                m.version = process.env.VERSION;
+                fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
+              "
+            fi
+            echo "Resolved CLI release version: $VERSION"
+          elif [ "$EXT_CHANGED" = "true" ]; then
+            VERSION=$(node -p "require('./packages/browser-extension/manifest.json').version")
+            if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+              VERSION=$(bump_patch "$VERSION")
+            fi
+            while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+              VERSION=$(bump_patch "$VERSION")
+            done
+            TAG="v${VERSION}"
+            export VERSION
+            npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/browser-extension
+            node -e "
+              const fs = require('fs');
+              const p = 'packages/browser-extension/manifest.json';
+              const m = JSON.parse(fs.readFileSync(p, 'utf8'));
+              m.version = process.env.VERSION;
+              fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
+            "
+            echo "Resolved extension-only release version: $VERSION"
+          else
+            echo "::error::No CLI or extension changes to release."
+            exit 1
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Commit version bump
-        if: github.event.inputs.tag == ''
+        if: github.event.inputs.tag == '' && steps.flags.outputs.should_release == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/cli/package.json
+          if [ "${{ steps.flags.outputs.cli_changed }}" = "true" ]; then
+            git add packages/cli/package.json
+          fi
+          if [ "${{ steps.flags.outputs.extension_changed }}" = "true" ]; then
+            git add packages/browser-extension/package.json packages/browser-extension/manifest.json
+          fi
           if git diff --staged --quiet; then
-            echo "No package.json change to commit."
+            echo "No version files changed to commit."
             exit 0
           fi
-          git commit -m "chore(cli): bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.version }} [skip ci]"
           git push origin HEAD:main
 
       - name: Create release tag
-        if: github.event.inputs.tag == ''
+        if: github.event.inputs.tag == '' && steps.flags.outputs.should_release == 'true'
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -157,6 +243,7 @@ jobs:
   github-release:
     name: GitHub Release assets
     needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -178,22 +265,28 @@ jobs:
       - name: Align package versions
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
-          npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/browser-extension
-          node -e "
-            const fs = require('fs');
-            const p = 'packages/browser-extension/manifest.json';
-            const m = JSON.parse(fs.readFileSync(p, 'utf8'));
-            m.version = process.env.VERSION;
-            fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
-          "
+          if [ "${{ needs.prepare.outputs.cli_changed }}" = "true" ]; then
+            npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
+          fi
+          if [ "${{ needs.prepare.outputs.extension_changed }}" = "true" ]; then
+            npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/browser-extension
+            node -e "
+              const fs = require('fs');
+              const p = 'packages/browser-extension/manifest.json';
+              const m = JSON.parse(fs.readFileSync(p, 'utf8'));
+              m.version = process.env.VERSION;
+              fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
+            "
+          fi
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
 
       - name: Build CLI
+        if: needs.prepare.outputs.cli_changed == 'true'
         run: pnpm -C packages/cli run build
 
       - name: Package CLI
+        if: needs.prepare.outputs.cli_changed == 'true'
         run: |
           set -euo pipefail
           VERSION="${{ needs.prepare.outputs.version }}"
@@ -207,6 +300,7 @@ jobs:
           ls -la "dotvault-cli-${VERSION}".*
 
       - name: Build browser extension
+        if: needs.prepare.outputs.extension_changed == 'true'
         env:
           # Optional repo/org variable: bakes default server URL into release builds
           DOTVAULT_API_URL: ${{ vars.DOTVAULT_API_URL }}
@@ -215,6 +309,7 @@ jobs:
         run: pnpm -C packages/browser-extension run build
 
       - name: Verify browser extension icons
+        if: needs.prepare.outputs.extension_changed == 'true'
         run: |
           set -euo pipefail
           for size in 16 32 48 128; do
@@ -222,6 +317,7 @@ jobs:
           done
 
       - name: Package browser extension
+        if: needs.prepare.outputs.extension_changed == 'true'
         run: |
           set -euo pipefail
           VERSION="${{ needs.prepare.outputs.version }}"
@@ -258,12 +354,12 @@ jobs:
             dotvault-cli-${{ needs.prepare.outputs.version }}.npm.tgz
             dotvault-extension-${{ needs.prepare.outputs.version }}.zip
             SHA256SUMS-${{ needs.prepare.outputs.version }}.txt
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
 
   npm-publish:
     name: Publish to npm
     needs: [prepare, github-release]
-    if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.prepare.outputs.should_release == 'true' && needs.prepare.outputs.cli_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -304,7 +400,7 @@ jobs:
   homebrew-formula:
     name: Update Homebrew formula
     needs: [prepare, github-release]
-    if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.prepare.outputs.should_release == 'true' && needs.prepare.outputs.cli_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

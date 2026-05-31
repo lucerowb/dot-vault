@@ -29,6 +29,27 @@ if (secret.length < 16) {
   );
 }
 
+function parseExtraTrustedOrigins(): string[] {
+  const raw = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+const trustedOrigins = [
+  ...new Set(
+    [
+      baseURL,
+      process.env.NEXT_PUBLIC_APP_URL,
+      ...parseExtraTrustedOrigins(),
+      // Chrome extension popup / service worker (sign-in from extension)
+      "chrome-extension://*",
+    ].filter((x): x is string => !!x?.trim()),
+  ),
+];
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -56,7 +77,5 @@ export const auth = betterAuth({
     bearer(),
     nextCookies(),
   ],
-  trustedOrigins: [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter(
-    (x): x is string => !!x?.trim(),
-  ),
+  trustedOrigins,
 });
