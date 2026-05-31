@@ -5,7 +5,13 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
 import { api } from "./api.js";
-import { getConfig, saveConfig, clearConfig, requireAuth } from "./config.js";
+import {
+  getConfig,
+  resolveDefaultApiUrl,
+  saveConfig,
+  clearConfig,
+  requireAuth,
+} from "./config.js";
 import {
   readEnvFile,
   writeEnvFile,
@@ -36,6 +42,9 @@ program
 
       if (options.apiUrl) {
         await saveConfig({ apiUrl: options.apiUrl });
+      } else {
+        const cfg = await getConfig();
+        await saveConfig({ apiUrl: cfg.apiUrl });
       }
 
       const email =
@@ -144,7 +153,7 @@ program
         if (projects.length === 0) {
           console.log(chalk.yellow("No projects found"));
           console.log(
-            chalk.gray("Create one at https://dotvault.io/dashboard"),
+            chalk.gray(`Create one at ${resolveDefaultApiUrl()}/dashboard`),
           );
           return;
         }
@@ -398,7 +407,7 @@ program
         if (projects.length === 0) {
           console.log(chalk.yellow("No projects found"));
           console.log(
-            chalk.gray("Create one at https://dotvault.io/dashboard"),
+            chalk.gray(`Create one at ${resolveDefaultApiUrl()}/dashboard`),
           );
           return;
         }
@@ -661,7 +670,7 @@ program
         if (projects.length === 0) {
           console.log(chalk.yellow("\nNo projects found."));
           console.log(
-            chalk.gray("Create one at https://dotvault.io/dashboard\n"),
+            chalk.gray(`Create one at ${resolveDefaultApiUrl()}/dashboard\n`),
           );
           return;
         } else if (projects.length === 1) {

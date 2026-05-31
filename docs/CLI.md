@@ -196,19 +196,40 @@ The CLI stores configuration in `~/.dotvault/config.json`:
 
 ```json
 {
-  "apiUrl": "https://api.dotvault.io",
-  "defaultProject": "my-project",
-  "editor": "vim",
-  "format": "env"
+  "apiUrl": "https://dot-vault.example.com",
+  "defaultProject": "my-project"
 }
+```
+
+### API URL resolution
+
+When no `apiUrl` is saved in `~/.dotvault/config.json`, the CLI uses the first set variable:
+
+| Priority | Variable |
+| -------- | -------- |
+| 1 | `DOTVAULT_API_URL` |
+| 2 | `BETTER_AUTH_URL` |
+| 3 | `NEXT_PUBLIC_APP_URL` |
+| 4 | `http://localhost:3000` |
+
+From a project directory, the CLI loads `.env.local` and `.env` (walking up to the repo root) so local `pnpm build:cli` / `dot-vault login` picks up the same values as the web app.
+
+```bash
+# Example: use production URL from your shell
+export BETTER_AUTH_URL=https://dot-vault.lucerowb.cloud
+dot-vault login
+
+# Or one-off
+dot-vault login --api-url "$BETTER_AUTH_URL"
 ```
 
 ### Environment Variables
 
-- `DOTVAULT_API_KEY` - API key for authentication
-- `DOTVAULT_API_URL` - Custom API endpoint
-- `DOTVAULT_PROJECT` - Default project
-- `DOTVAULT_ENV` - Default environment
+- `DOTVAULT_API_URL` - API base URL (overrides `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`)
+- `BETTER_AUTH_URL` - Same as the Next.js app auth URL
+- `NEXT_PUBLIC_APP_URL` - Public app URL (fallback)
+- `DOTVAULT_PROJECT` - Default project (optional)
+- `DOTVAULT_ENV` - Default environment (optional)
 
 ## Global Flags
 

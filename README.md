@@ -229,7 +229,17 @@ node packages/cli/bin/dot-vault.js push .env -p my-project-slug -l staging
 node packages/cli/bin/dot-vault.js init   # detect local .env files and link a project
 ```
 
-Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`list`), `pull`, `push`, `delete`, `init`. Configure API URL via `login --api-url` or config file (see [docs/CLI.md](./docs/CLI.md)).
+Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`list`), `pull`, `push`, `delete`, `init`.
+
+Default API URL is resolved at runtime (first match wins):
+
+1. `~/.dotvault/config.json` (`apiUrl` from `dot-vault login --api-url`)
+2. `DOTVAULT_API_URL`
+3. `BETTER_AUTH_URL`
+4. `NEXT_PUBLIC_APP_URL`
+5. `http://localhost:3000`
+
+From the repo root, the CLI also loads `.env.local` / `.env` when you run it (same vars as the Next.js app). See [docs/CLI.md](./docs/CLI.md).
 
 ### Browser extension
 

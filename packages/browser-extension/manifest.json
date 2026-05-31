@@ -17,7 +17,7 @@
     "https://*.cloudflare.com/*",
     "https://*.supabase.com/*",
     "https://*.neon.tech/*",
-    "https://dotvault.io/*"
+    "https://dot-vault.lucerowb.cloud/*"
   ],
   "background": {
     "service_worker": "background.js"

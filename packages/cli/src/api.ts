@@ -15,9 +15,25 @@ interface ProjectEnv {
   updatedAt: string;
 }
 
-interface ApiError {
-  error: string;
+interface ApiErrorBody {
+  error?: string | { code?: string; message?: string };
   message?: string;
+  code?: string;
+}
+
+interface ApiEnvelope<T> {
+  success?: boolean;
+  data?: T;
+}
+
+function parseApiError(body: ApiErrorBody, status: number): string {
+  if (typeof body.error === "object" && body.error?.message) {
+    return body.error.message;
+  }
+  if (typeof body.error === "string") {
+    return body.error;
+  }
+  return body.message || body.code || `HTTP ${status}`;
 }
 
 class ApiClient {
@@ -30,14 +46,16 @@ class ApiClient {
     } = {},
   ): Promise<T> {
     const config = await getConfig();
-    const url = `${config.apiUrl}/api${endpoint}`;
+    const base = config.apiUrl.replace(/\/$/, "");
+    const url = `${base}/api${endpoint}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
 
-    if (options.token || config.apiToken) {
-      headers["Authorization"] = `Bearer ${options.token || config.apiToken}`;
+    const sessionToken = options.token || config.apiToken;
+    if (sessionToken) {
+      headers["Authorization"] = `Bearer ${sessionToken}`;
     }
 
     const response = await fetch(url, {
@@ -46,24 +64,58 @@ class ApiClient {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
+    const raw = (await response.json().catch(() => ({}))) as ApiEnvelope<T> &
+      ApiErrorBody &
+      T;
+
     if (!response.ok) {
-      const error = (await response.json().catch(() => ({
-        error: "Unknown error",
-      }))) as ApiError;
+      throw new Error(parseApiError(raw, response.status));
+    }
+
+    if (
+      raw &&
+      typeof raw === "object" &&
+      "success" in raw &&
+      raw.success === true &&
+      "data" in raw
+    ) {
+      return raw.data as T;
+    }
+
+    return raw as T;
+  }
+
+  // Auth (Better Auth email sign-in)
+  async login(email: string, password: string): Promise<{ token: string }> {
+    const config = await getConfig();
+    const base = config.apiUrl.replace(/\/$/, "");
+    const response = await fetch(`${base}/api/auth/sign-in/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as {
+      token?: string;
+      session?: { token?: string };
+      message?: string;
+      code?: string;
+    };
+
+    if (!response.ok) {
       throw new Error(
-        error.message || error.error || `HTTP ${response.status}`,
+        data.message || data.code || `HTTP ${response.status}`,
       );
     }
 
-    return response.json() as Promise<T>;
-  }
+    const token = data.token ?? data.session?.token;
+    if (!token) {
+      throw new Error(
+        "Sign-in succeeded but no session token was returned. Redeploy the app with bearer auth enabled if this persists.",
+      );
+    }
 
-  // Auth
-  async login(email: string, password: string): Promise<{ token: string }> {
-    return this.request<{ token: string }>("/auth/login", {
-      method: "POST",
-      body: { email, password },
-    });
+    return { token };
   }
 
   async getToken(): Promise<{ token: string }> {
@@ -71,9 +123,17 @@ class ApiClient {
     if (!config.apiToken) {
       throw new Error("Not authenticated");
     }
-    return this.request<{ token: string }>("/auth/token", {
-      token: config.apiToken,
-    });
+
+    const session = await this.request<{ user?: { id: string } } | null>(
+      "/auth/get-session",
+      { token: config.apiToken },
+    );
+
+    if (!session?.user) {
+      throw new Error("Session expired or invalid");
+    }
+
+    return { token: config.apiToken };
   }
 
   // Projects

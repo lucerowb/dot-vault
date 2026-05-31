@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { nextCookies } from "better-auth/next-js";
+import { bearer } from "better-auth/plugins";
 
 import { db } from "@/lib/db";
 import { schema } from "@/lib/db/schema";
@@ -39,7 +40,7 @@ export const auth = betterAuth({
     minPasswordLength: 10,
     maxPasswordLength: 128,
   },
-  plugins: [nextCookies()],
+  plugins: [bearer(), nextCookies()],
   trustedOrigins: [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter(
     (x): x is string => !!x?.trim(),
   ),

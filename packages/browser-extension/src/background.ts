@@ -22,7 +22,7 @@ interface EnvFile {
 
 // Default configuration
 const DEFAULT_CONFIG: DotVaultConfig = {
-  apiUrl: "https://dotvault.io",
+  apiUrl: "https://dot-vault.lucerowb.cloud",
   apiToken: null,
   lastSync: 0,
   projects: [],
@@ -130,7 +130,8 @@ async function login(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const config = await getConfig();
-    const response = await fetch(`${config.apiUrl}/api/auth/login`, {
+    const base = config.apiUrl.replace(/\/$/, "");
+    const response = await fetch(`${base}/api/auth/sign-in/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -142,8 +143,9 @@ async function login(
     }
 
     const data = await response.json();
-    if (data.token) {
-      await setConfig({ apiToken: data.token });
+    const token = data.token ?? data.session?.token;
+    if (token) {
+      await setConfig({ apiToken: token });
       await syncProjects();
       return { success: true };
     }
