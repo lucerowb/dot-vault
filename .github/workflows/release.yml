@@ -35,8 +35,8 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
-      cli_changed: ${{ steps.changes.outputs.cli }}
-      extension_changed: ${{ steps.changes.outputs.extension }}
+      cli_changed: ${{ steps.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch' }}
+      extension_changed: ${{ steps.changes.outputs.extension == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -191,40 +191,49 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
 
       - name: Build CLI
-        if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: pnpm -C packages/cli run build
 
       - name: Package CLI
-        if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
           VERSION="${{ needs.prepare.outputs.version }}"
           rm -rf artifacts
-          pnpm --filter "./packages/cli" deploy --prod "artifacts/dotvault-cli"
+          pnpm --filter "@lucerowb/dot-vault" deploy --prod "artifacts/dotvault-cli"
           tar -czf "dotvault-cli-${VERSION}.tar.gz" -C artifacts dotvault-cli
           (cd packages/cli && pnpm pack --pack-destination "$GITHUB_WORKSPACE")
           PACKED=$(ls -1 "$GITHUB_WORKSPACE"/*.tgz | head -1)
+          test -n "$PACKED"
           mv "$PACKED" "dotvault-cli-${VERSION}.npm.tgz"
+          ls -la "dotvault-cli-${VERSION}".*
 
       - name: Build browser extension
-        if: needs.prepare.outputs.extension_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: pnpm -C packages/browser-extension run build
 
       - name: Package browser extension
-        if: needs.prepare.outputs.extension_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
+          set -euo pipefail
           VERSION="${{ needs.prepare.outputs.version }}"
-          (cd packages/browser-extension/dist && zip -r "$GITHUB_WORKSPACE/dotvault-extension-${VERSION}.zip" .)
+          test -d packages/browser-extension/dist
+          (cd packages/browser-extension/dist && zip -qr "$GITHUB_WORKSPACE/dotvault-extension-${VERSION}.zip" .)
+          ls -la "dotvault-extension-${VERSION}.zip"
 
       - name: Checksums
         run: |
+          set -euo pipefail
           VERSION="${{ needs.prepare.outputs.version }}"
-          {
-            [ -f "dotvault-cli-${VERSION}.tar.gz" ] && shasum -a 256 "dotvault-cli-${VERSION}.tar.gz"
-            [ -f "dotvault-cli-${VERSION}.npm.tgz" ] && shasum -a 256 "dotvault-cli-${VERSION}.npm.tgz"
-            [ -f "dotvault-extension-${VERSION}.zip" ] && shasum -a 256 "dotvault-extension-${VERSION}.zip"
-          } > "SHA256SUMS-${VERSION}.txt"
-          cat "SHA256SUMS-${VERSION}.txt"
+          SUMFILE="SHA256SUMS-${VERSION}.txt"
+          : > "$SUMFILE"
+          for f in "dotvault-cli-${VERSION}.tar.gz" "dotvault-cli-${VERSION}.npm.tgz" "dotvault-extension-${VERSION}.zip"; do
+            if [ -f "$f" ]; then
+              sha256sum "$f" >> "$SUMFILE"
+            fi
+          done
+          if [ ! -s "$SUMFILE" ]; then
+            echo "::error::No release artifacts in $(pwd)"
+            ls -la
+            exit 1
+          fi
+          cat "$SUMFILE"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -233,10 +242,11 @@ jobs:
           name: DotVault ${{ needs.prepare.outputs.tag }}
           generate_release_notes: true
           files: |
-            dotvault-cli-*
-            dotvault-extension-*
-            SHA256SUMS-*
-          fail_on_unmatched_files: false
+            dotvault-cli-${{ needs.prepare.outputs.version }}.tar.gz
+            dotvault-cli-${{ needs.prepare.outputs.version }}.npm.tgz
+            dotvault-extension-${{ needs.prepare.outputs.version }}.zip
+            SHA256SUMS-${{ needs.prepare.outputs.version }}.txt
+          fail_on_unmatched_files: true
 
   npm-publish:
     name: Publish to npm
