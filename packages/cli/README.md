@@ -8,6 +8,18 @@ Requires **Node.js 18+** and a running DotVault instance. See [CHANGELOG](./CHAN
 
 ## Install
 
+### Homebrew (macOS)
+
+```bash
+brew tap lucerowb/dot-vault https://github.com/lucerowb/dot-vault
+brew install dot-vault
+dv --version
+```
+
+Installs `dv`, `dot-vault`, and `dotvault` with a Homebrew-managed Node.js dependency.
+
+### npm
+
 ```bash
 npm install -g @lucerowb/dot-vault
 

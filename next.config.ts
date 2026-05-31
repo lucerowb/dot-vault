@@ -47,18 +47,6 @@ const nextConfig: NextConfig = {
   // Docusaurus uses trailing slashes (/docs/); avoid Next stripping them before the dev proxy.
   skipTrailingSlashRedirect: true,
   allowedDevOrigins: ["127.0.0.1"],
-  async redirects() {
-    if (!isDev) {
-      return [
-        {
-          source: "/docs",
-          destination: "/docs/",
-          permanent: true,
-        },
-      ];
-    }
-    return [];
-  },
   async rewrites() {
     if (isDev) {
       return [
@@ -76,7 +64,13 @@ const nextConfig: NextConfig = {
         },
       ];
     }
-    return [];
+    // Baked Docusaurus output lives in public/docs/ (…/page/index.html). Rewrites avoid
+    // a /docs → /docs/ redirect loop and serve directory URLs as index.html.
+    return [
+      { source: "/docs", destination: "/docs/index.html" },
+      { source: "/docs/", destination: "/docs/index.html" },
+      { source: "/docs/:path*/", destination: "/docs/:path*/index.html" },
+    ];
   },
   async headers() {
     return [

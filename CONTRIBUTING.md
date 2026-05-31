@@ -17,6 +17,7 @@ pnpm dv help
 ```
 
 - Version lives in `packages/cli/package.json` (patch releases often auto-bump on merge to `main` when CLI paths change).
+- Homebrew: `Formula/dot-vault.rb` is bumped on release (or run `./scripts/update-homebrew-formula.sh [VERSION]` after publishing assets).
 - After API route changes, verify push/pull against a running app: `dv ps` / `dv pl`.
 - User-facing CLI docs: [`packages/cli/README.md`](./packages/cli/README.md) and [`docs/CLI.md`](./docs/CLI.md).
 

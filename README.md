@@ -209,9 +209,17 @@ Classic **Automation** tokens also work. A normal publish token without bypass 2
 
 You only need to edit `packages/cli/package.json` version manually for **minor/major** releases; patch releases are automatic after code changes.
 
-### Install CLI from npm
+### Install CLI
 
-The unscoped name `dot-vault` is blocked by npm (too similar to `dotvault`). The package is published as **`@lucerowb/dot-vault`**:
+**Homebrew (macOS):**
+
+```bash
+brew tap lucerowb/dot-vault https://github.com/lucerowb/dot-vault
+brew install dot-vault
+dv login --api-url https://your-dotvault.example.com
+```
+
+**npm:** The unscoped name `dot-vault` is blocked by npm (too similar to `dotvault`). The package is published as **`@lucerowb/dot-vault`**:
 
 ```bash
 # Run once (no global install)
@@ -231,7 +239,7 @@ Each release includes:
 
 | Asset | Install / use |
 | ----- | ---------------- |
-| `dotvault-cli-<version>.npm.tgz` | `npm install -g ./dotvault-cli-0.1.0.npm.tgz` (Node 18+) |
+| `dotvault-cli-<version>.npm.tgz` | `npm install -g ./dotvault-cli-0.1.0.npm.tgz` (Node 18+) or Homebrew formula source |
 | `dotvault-cli-<version>.tar.gz` | Extract, then `node bin/dotvault.js` (includes dependencies) |
 | `dotvault-extension-<version>.zip` | Chrome → Extensions → Load unpacked (extract zip, select folder) |
 | `SHA256SUMS-<version>.txt` | Checksums |

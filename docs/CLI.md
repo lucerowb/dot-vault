@@ -6,6 +6,15 @@ The CLI signs in with your DotVault account and **pulls** / **pushes** encrypted
 
 ## Install
 
+### Homebrew (macOS)
+
+```bash
+brew tap lucerowb/dot-vault https://github.com/lucerowb/dot-vault
+brew install dot-vault
+```
+
+### npm
+
 ```bash
 npm install -g @lucerowb/dot-vault
 # or
@@ -63,6 +72,4 @@ pnpm dv          # from repo root (see root package.json)
 node packages/cli/bin/dot-vault.js
 ```
 
-## Legacy / planned
-
-Sections below in older copies of this file (Homebrew tap, `dotvault env get`, OAuth-only login) may not match the shipped CLI yet. Use `dv help` and [`packages/cli/README.md`](https://github.com/lucerowb/dot-vault/blob/main/packages/cli/README.md) for the current command list.
+Formula source: [`Formula/dot-vault.rb`](https://github.com/lucerowb/dot-vault/blob/main/Formula/dot-vault.rb) (updated on each GitHub release).
