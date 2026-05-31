@@ -165,6 +165,30 @@ Full feature index: [docs/FEATURES_SUMMARY.md](./docs/FEATURES_SUMMARY.md). Prod
 
 Apply migrations through `0003_*` (or latest in [`drizzle/`](./drizzle/)) for invites, audit, GitHub, and enterprise tables—see [docs/MANUAL_STEPS.md](./docs/MANUAL_STEPS.md).
 
+### GitHub Releases
+
+Releases are **automatic** when you merge to `main` with a new `version` in [`packages/cli/package.json`](./packages/cli/package.json):
+
+1. CI creates tag `v{version}` (if it does not exist yet).
+2. The tag triggers a build and uploads CLI + extension assets to [GitHub Releases](https://github.com/lucerowb/dot-vault/releases).
+
+**You do not need any GitHub repository secrets** — the workflow uses the built-in `GITHUB_TOKEN` with `contents: write` (already set in the workflow).
+
+**To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, and wait for Actions to finish.
+
+**Re-upload assets** for an existing tag: **Actions → Release → Run workflow** → enter the tag (e.g. `v0.1.0`).
+
+Each release includes:
+
+| Asset | Install / use |
+| ----- | ---------------- |
+| `dotvault-cli-<version>.npm.tgz` | `npm install -g ./dotvault-cli-0.1.0.npm.tgz` (Node 18+) |
+| `dotvault-cli-<version>.tar.gz` | Extract, then `node bin/dotvault.js` (includes dependencies) |
+| `dotvault-extension-<version>.zip` | Chrome → Extensions → Load unpacked (extract zip, select folder) |
+| `SHA256SUMS-<version>.txt` | Checksums |
+
+Downloads: [github.com/lucerowb/dot-vault/releases](https://github.com/lucerowb/dot-vault/releases)
+
 ### CLI
 
 From the repo (development):
