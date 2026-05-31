@@ -19,6 +19,9 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Workspace package bins (e.g. docusaurus) live under packages/*/node_modules; .dockerignore
+# omits node_modules from the build context, so restore them from the deps stage.
+COPY --from=deps /app/packages/docs-site/node_modules ./packages/docs-site/node_modules
 # Inlined into the client bundle at build time; set in Coolify build args if needed.
 ARG NEXT_PUBLIC_APP_URL=https://localhost:3000
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
