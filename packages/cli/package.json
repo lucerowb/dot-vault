@@ -13,13 +13,22 @@
     "url": "https://github.com/lucerowb/dot-vault/issues"
   },
   "homepage": "https://github.com/lucerowb/dot-vault#readme",
-  "keywords": ["dotvault", "env", "secrets", "cli", "dotenv"],
+  "keywords": [
+    "dotvault",
+    "env",
+    "secrets",
+    "cli",
+    "dotenv"
+  ],
   "type": "module",
   "bin": {
     "dot-vault": "./bin/dot-vault.js",
     "dotvault": "./bin/dot-vault.js"
   },
-  "files": ["bin", "dist"],
+  "files": [
+    "bin",
+    "dist"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": false
