@@ -20,9 +20,9 @@ interface EnvFile {
   updatedAt: string;
 }
 
-// Default configuration
+// Default configuration (set your instance in the extension popup after install)
 const DEFAULT_CONFIG: DotVaultConfig = {
-  apiUrl: "https://dot-vault.lucerowb.cloud",
+  apiUrl: "http://localhost:3000",
   apiToken: null,
   lastSync: 0,
   projects: [],

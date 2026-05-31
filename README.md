@@ -1,6 +1,13 @@
 # DotVault
 
-**Ephemeral _and_ authenticated cloud storage for `.env` files.**
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-9.x-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/lucerowb)
+
+**Ephemeral _and_ authenticated cloud storage for `.env` files.** Open source under [MIT](./LICENSE).
 
 - **Quick share** — encrypt in the browser (**AES-256-GCM**), store ciphertext in [Upstash Redis](https://upstash.com/), put the key in the **URL fragment** so it never hits your server.
 - **Cloud vault** — sign in with [**Better Auth**](https://www.better-auth.com/) (email + password), organize **projects**, upload and **view / update / delete** env blobs stored in [**Supabase Postgres**](https://supabase.com/) via [Drizzle ORM](https://orm.drizzle.team/). Payloads are **encrypted at rest** with **AES-256-GCM** using `STORAGE_ENCRYPTION_KEY`.
@@ -9,7 +16,10 @@
 | -------------- | -------------------------------------------------------------------------------------------- |
 | **Maintainer** | Srijan Bajracharya ([srijan.bajracharya97@gmail.com](mailto:srijan.bajracharya97@gmail.com)) |
 | **Repository** | [github.com/lucerowb/dot-vault](https://github.com/lucerowb/dot-vault)                       |
-| **License**    | MIT (see [LICENSE](./LICENSE))                                                               |
+| **License**    | [MIT](./LICENSE) — free to use, modify, and self-host                                        |
+| **Support**    | [Buy Me a Coffee](https://www.buymeacoffee.com/lucerowb)                                     |
+
+> **Self-hosting:** This repo is deployment-agnostic. Example URLs like `dot-vault.lucerowb.cloud` in docs are the maintainer’s demo instance, not a required service.
 
 ---
 
@@ -392,4 +402,10 @@ Ephemeral vault routes (`/api/vault/*`) use the **Edge** runtime; Better Auth + 
 
 Built with [Next.js](https://nextjs.org/), [Tailwind CSS](https://tailwindcss.com/), [Framer Motion](https://www.framer.com/motion/), [Better Auth](https://www.better-auth.com/), [Drizzle ORM](https://orm.drizzle.team/), [Supabase Postgres](https://supabase.com/), [Zod](https://zod.dev/), and [Upstash](https://upstash.com/).
 
-Contributions and issues welcome on [GitHub](https://github.com/lucerowb/dot-vault/issues).
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md) for vulnerability reports.
+
+## Support the project
+
+If DotVault helps you, you can support development on [Buy Me a Coffee](https://www.buymeacoffee.com/lucerowb). Sponsorship is optional; the software stays MIT-licensed either way.

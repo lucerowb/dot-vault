@@ -17,8 +17,10 @@
     "https://*.cloudflare.com/*",
     "https://*.supabase.com/*",
     "https://*.neon.tech/*",
-    "https://dot-vault.lucerowb.cloud/*"
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
+  "optional_host_permissions": ["https://*/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -36,7 +38,9 @@
         "https://*.digitalocean.com/*",
         "https://*.cloudflare.com/*",
         "https://*.supabase.com/*",
-        "https://*.neon.tech/*"
+        "https://*.neon.tech/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"]

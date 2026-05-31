@@ -15,6 +15,13 @@ const metadataBaseUrl =
 const siteDescription =
   "Zero-knowledge quick share plus encrypted cloud vault for environment files.";
 
+const aiChatWidgetSrc = process.env.NEXT_PUBLIC_AI_CHAT_WIDGET_URL?.trim();
+const aiChatApiKey = process.env.NEXT_PUBLIC_AI_CHAT_API_KEY?.trim();
+const aiChatOrgId = process.env.NEXT_PUBLIC_AI_CHAT_ORG_ID?.trim();
+const showAiChatWidget = Boolean(
+  aiChatWidgetSrc && aiChatApiKey && aiChatOrgId,
+);
+
 export const metadata: Metadata = {
   metadataBase: new URL(metadataBaseUrl),
   title: {
@@ -65,14 +72,16 @@ export default function RootLayout({
           <SiteHeader />
           <div className="flex flex-1 flex-col">{children}</div>
         </ClientProviders>
-        <Script
-          strategy="lazyOnload"
-          type="module"
-          src="https://widget.dev.aichat.site/dist/ai-chat-widget.js"
-          id="ai-chat-widget"
-          data-api-key="cmpfbpqen00x4zv09onvamjlt"
-          data-org-id="organization-test-319d5ed1-2a9c-4d2d-906f-c78804321944"
-        />
+        {showAiChatWidget ? (
+          <Script
+            strategy="lazyOnload"
+            type="module"
+            src={aiChatWidgetSrc}
+            id="ai-chat-widget"
+            data-api-key={aiChatApiKey}
+            data-org-id={aiChatOrgId}
+          />
+        ) : null}
       </body>
     </html>
   );
