@@ -1,6 +1,6 @@
 {
   "name": "@lucerowb/dot-vault",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "CLI for DotVault — secure environment variable management",
   "license": "MIT",
   "author": "Srijan Bajracharya <srijan.bajracharya97@gmail.com>",
