@@ -167,16 +167,16 @@ Apply migrations through `0003_*` (or latest in [`drizzle/`](./drizzle/)) for in
 
 ### GitHub Releases
 
-Releases are **automatic** when you merge to `main` with a new `version` in [`packages/cli/package.json`](./packages/cli/package.json):
+Releases are **automatic** when you merge to `main` (with changes under `packages/cli` or `packages/browser-extension`):
 
-1. CI creates tag `v{version}` (if it does not exist yet).
-2. The tag triggers a build and uploads CLI + extension assets to [GitHub Releases](https://github.com/lucerowb/dot-vault/releases).
+1. CI ensures tag `v{version}` exists (`version` from [`packages/cli/package.json`](./packages/cli/package.json)).
+2. Builds CLI + extension and publishes assets to **[Releases](https://github.com/lucerowb/dot-vault/releases)** (not just the **Tags** tab — open **Releases** for downloads).
 
-**You do not need any GitHub repository secrets** — the workflow uses the built-in `GITHUB_TOKEN` with `contents: write` (already set in the workflow).
+**You do not need any GitHub repository secrets** — the workflow uses the built-in `GITHUB_TOKEN` with `contents: write`.
 
-**To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, and wait for Actions to finish.
+**To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, wait for the **Release** workflow (~2–5 min).
 
-**Re-upload assets** for an existing tag: **Actions → Release → Run workflow** → enter the tag (e.g. `v0.1.0`).
+**Fix a tag that has no assets** (e.g. only “Source code zip”): **Actions → Release → Run workflow** → leave tag empty (uses package version) or set `v0.1.0`.
 
 Each release includes:
 
