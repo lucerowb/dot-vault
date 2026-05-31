@@ -111,7 +111,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build CLI
-        run: pnpm --filter dot-vault build
+        run: pnpm -C packages/cli run build
 
   extension:
     name: Browser extension

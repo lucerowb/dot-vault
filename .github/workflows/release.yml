@@ -6,7 +6,7 @@
 #
 # Secrets:
 #   - GITHUB_TOKEN (built-in) — GitHub Releases
-#   - NPM_TOKEN (required for npm / npx) — Automation token from npmjs.com
+#   - NPM_TOKEN (optional) — npm publish for `npx dot-vault`
 
 name: Release
 
@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build (e.g. v0.1.0). Created automatically from package.json when empty."
+        description: "Tag to publish (e.g. v0.1.0). Empty = version from packages/cli/package.json."
         required: false
         default: ""
 
@@ -41,6 +41,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
 
       - name: Resolve release tag
         id: meta
@@ -61,7 +71,7 @@ jobs:
         run: |
           TAG="${{ steps.meta.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists."
+            echo "Tag $TAG already exists (will publish assets for this version)."
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -69,20 +79,6 @@ jobs:
             git push origin "$TAG"
             echo "Created tag $TAG"
           fi
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.meta.outputs.tag }}
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.5
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: https://registry.npmjs.org
-          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -103,15 +99,17 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
 
       - name: Build CLI
-        run: pnpm --filter dot-vault build
+        run: pnpm -C packages/cli run build
 
       - name: Package CLI
         run: |
+          set -euo pipefail
           VERSION="${{ steps.meta.outputs.version }}"
-          pnpm deploy --filter=dot-vault --prod "artifacts/dotvault-cli"
+          pnpm --filter "./packages/cli" deploy --prod "artifacts/dotvault-cli"
           tar -czf "dotvault-cli-${VERSION}.tar.gz" -C artifacts dotvault-cli
           (cd packages/cli && pnpm pack --pack-destination "$GITHUB_WORKSPACE")
-          mv "$GITHUB_WORKSPACE/dot-vault-${VERSION}.tgz" "dotvault-cli-${VERSION}.npm.tgz"
+          PACKED=$(ls -1 "$GITHUB_WORKSPACE"/*.tgz | head -1)
+          mv "$PACKED" "dotvault-cli-${VERSION}.npm.tgz"
 
       - name: Publish CLI to npm
         working-directory: packages/cli
@@ -126,7 +124,7 @@ jobs:
           npm publish --access public
 
       - name: Build browser extension
-        run: pnpm --filter dotvault-browser-extension build
+        run: pnpm -C packages/browser-extension run build
 
       - name: Package browser extension
         run: |
