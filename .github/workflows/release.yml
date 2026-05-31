@@ -1,12 +1,9 @@
 # Automatic releases for CLI + browser extension.
 #
-# On merge to main (when package version files change):
-#   1. Ensures git tag v{version} exists (creates it if needed).
-#   2. Builds CLI + extension and uploads assets to GitHub Releases.
+# Job 1: GitHub Release assets (CLI tarballs + extension zip) — always runs to completion.
+# Job 2: npm publish for `npx dot-vault` — optional; needs NPM_TOKEN (granular token + bypass 2FA).
 #
-# Secrets:
-#   - GITHUB_TOKEN (built-in) — GitHub Releases
-#   - NPM_TOKEN (optional) — npm publish for `npx dot-vault`
+# Secrets: GITHUB_TOKEN (built-in), NPM_TOKEN (npmjs.com → copy token value into GitHub)
 
 name: Release
 
@@ -34,8 +31,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Tag, build, and publish
+  github-release:
+    name: GitHub Release assets
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +46,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          registry-url: https://registry.npmjs.org
           cache: pnpm
 
       - name: Resolve release tag
@@ -64,20 +60,18 @@ jobs:
           VERSION="${TAG#v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Release tag: $TAG (version $VERSION)"
 
       - name: Create tag if missing
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.tag == ''
         run: |
           TAG="${{ steps.meta.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists (will publish assets for this version)."
+            echo "Tag $TAG already exists."
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"
-            echo "Created tag $TAG"
           fi
 
       - name: Install dependencies
@@ -128,7 +122,6 @@ jobs:
             shasum -a 256 "dotvault-cli-${VERSION}.npm.tgz"
             shasum -a 256 "dotvault-extension-${VERSION}.zip"
           } > "SHA256SUMS-${VERSION}.txt"
-          cat "SHA256SUMS-${VERSION}.txt"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -142,19 +135,48 @@ jobs:
             SHA256SUMS-*
           fail_on_unmatched_files: true
 
-      # Runs after GitHub Release so npm auth issues never block release assets.
-      - name: Publish CLI to npm
-        continue-on-error: true
+  npm-publish:
+    name: Publish to npm
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+          always-auth: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Align version
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION=$(node -p "require('./packages/cli/package.json').version")
+          fi
+          npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Build CLI
+        run: pnpm -C packages/cli run build
+
+      - name: Verify npm authentication and publish
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::warning::NPM_TOKEN secret is not set — skipped npm publish."
+            echo "::warning::NPM_TOKEN secret is missing — skip npm publish."
             exit 0
           fi
-          npm publish --access public || {
-            echo "::warning::npm publish failed. If you use 2FA on npmjs.com, create a Granular Access Token"
-            echo "with Publish permission and enable \"Bypass 2FA for automation\", then update the NPM_TOKEN secret."
-            exit 1
-          }
+          npm whoami
+          npm publish --access public

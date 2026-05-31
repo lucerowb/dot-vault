@@ -182,7 +182,8 @@ Releases are **automatic** when you merge to `main` (with changes under `package
 1. [npmjs.com](https://www.npmjs.com/) → **Profile** → **Access Tokens** → **Generate New Token** → **Granular Access Token**
 2. Permissions: **Read and write** for packages (or limit to `dot-vault`)
 3. Enable **“Bypass two-factor authentication (2FA) for automation”** (required for CI; npm returns 403 without it)
-4. Copy the token → GitHub repo **Settings → Secrets → Actions** → `NPM_TOKEN`
+4. Copy the **token value** (`npm_…` — shown only once at creation) into GitHub **Settings → Secrets → Actions** as secret name **`NPM_TOKEN`**.  
+   The token **label** on npm (e.g. `dot-vault`) is not the secret; you must paste the `npm_` string. Re-save the secret after rotating the token.
 
 Classic **Automation** tokens also work. A normal publish token without bypass 2FA will fail in GitHub Actions with `403 Forbidden`.
 
