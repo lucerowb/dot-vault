@@ -40,6 +40,8 @@
     "test:e2e": "playwright test",
     "build:cli": "pnpm --filter @lucerowb/dot-vault build",
     "build:extension": "pnpm --filter dotvault-browser-extension build",
+    "dv": "node packages/cli/bin/dot-vault.js",
+    "cli": "node packages/cli/bin/dot-vault.js",
     "brand:normalize": "node scripts/normalize-brand-logos.mjs"
   },
   "dependencies": {

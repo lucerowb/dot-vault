@@ -32,7 +32,6 @@ import {
   promptEnvLabel,
   promptOverwriteAction,
   promptPassword,
-  promptProject,
 } from "./prompts.js";
 import {
   CLI_BIN,
@@ -45,7 +44,8 @@ import {
   printRandomTip,
   success,
 } from "./ui.js";
-import { runInteractiveMenu } from "./menu.js";
+import { runInteractiveSession } from "./session.js";
+import { runInitWizard } from "./wizard.js";
 import { printCompletionScript } from "./completion.js";
 
 function handleError(error: unknown): never {
@@ -216,7 +216,7 @@ function registerProgram(): void {
     .command("pull [label]")
     .aliases(["pl", "get", "down"])
     .description("Download an environment to a local file")
-    .option("-p, --project <ref>", "Project slug, name, or id")
+    .option("-p, --project <slug>", "Project slug (not env name)")
     .option("-o, --output <file>", "Output path", ".env")
     .option("-f, --force", "Overwrite without asking")
     .option("--merge", "Merge into existing file")
@@ -278,7 +278,7 @@ function registerProgram(): void {
     .command("push [file]")
     .aliases(["ps", "up", "put"])
     .description("Upload a local .env file to the vault")
-    .option("-p, --project <ref>", "Project slug, name, or id")
+    .option("-p, --project <slug>", "Project slug (not env name)")
     .option("-l, --label <name>", "Environment label")
     .option("-f, --force", "Overwrite without asking")
     .action(async (file, options) => {
@@ -320,11 +320,7 @@ function registerProgram(): void {
         const uploadSpinner = createSpinner(
           existing ? `Updating ${label}…` : `Creating ${label}…`,
         );
-        if (existing) {
-          await api.updateEnv(projectId, label, content);
-        } else {
-          await api.createEnv(projectId, label, content);
-        }
+        await api.upsertEnv(projectId, label, content);
         uploadSpinner.succeed(
           existing ? `Updated ${label}` : `Created ${label}`,
         );
@@ -339,7 +335,7 @@ function registerProgram(): void {
     .command("delete <label>")
     .aliases(["rm", "del"])
     .description("Delete an environment from the vault")
-    .option("-p, --project <ref>", "Project slug, name, or id")
+    .option("-p, --project <slug>", "Project slug (not env name)")
     .option("-f, --force", "Skip confirmation")
     .action(async (label, options) => {
       try {
@@ -374,80 +370,11 @@ function registerProgram(): void {
     .aliases(["setup", "start"])
     .description("Interactive setup wizard")
     .action(async () => {
-      await printBanner(false, true);
-      hint("We'll sign you in and optionally upload local .env files.");
-
-      const config = await getConfig();
-      if (!config.apiToken) {
-        const url = await promptApiUrl(
-          config.apiUrl || resolveDefaultApiUrl(),
-        );
-        await saveConfig({ apiUrl: url });
-        const email = await promptEmail();
-        const pass = await promptPassword();
-        const spinner = createSpinner("Signing in…");
-        try {
-          const { token } = await api.login(email, pass);
-          await saveConfig({ apiToken: token });
-          spinner.succeed("Signed in");
-        } catch (error) {
-          spinner.fail("Sign-in failed");
-          handleError(error);
-        }
-      } else {
-        success("Already signed in");
+      try {
+        await runInitWizard();
+      } catch (error) {
+        handleError(error);
       }
-
-      const detected = detectEnvFiles();
-      if (detected.length > 0) {
-        console.log(chalk.gray("\n  Local files:"));
-        detected.forEach((f) => console.log(`    • ${f}`));
-        console.log();
-
-        const shouldPush = await promptConfirm(
-          "Upload these to DotVault?",
-          true,
-        );
-
-        if (shouldPush) {
-          const spinner = createSpinner("Loading projects…");
-          const projects = await api.listProjects();
-          spinner.stop();
-
-          if (projects.length === 0) {
-            console.log(chalk.yellow("\n  No projects — create one in the dashboard first.\n"));
-            return;
-          }
-
-          const projectId = await promptProject(projects, "upload");
-
-          for (const file of detected) {
-            const content = await readEnvFile(file);
-            const basename = path.basename(file);
-            const label =
-              basename === ".env" ? "development" : basename.slice(5);
-            const pushSpinner = createSpinner(`Uploading ${file} as ${label}…`);
-            try {
-              const existingEnvs = await api.listEnvs(projectId);
-              const existing = existingEnvs.find((e) => e.label === label);
-              if (existing) {
-                await api.updateEnv(projectId, label, content);
-              } else {
-                await api.createEnv(projectId, label, content);
-              }
-              pushSpinner.succeed(label);
-            } catch (error) {
-              pushSpinner.fail(
-                `${file}: ${error instanceof Error ? error.message : "failed"}`,
-              );
-            }
-          }
-        }
-      }
-
-      console.log(chalk.bold.green("\n  ✓ Setup complete\n"));
-      printNextSteps("init");
-      printRandomTip();
     });
 
   program
@@ -476,6 +403,36 @@ function registerProgram(): void {
       await printBanner(false, false);
       printCheatsheet();
     });
+
+  program
+    .command("shell")
+    .aliases(["sh", "interactive", "i"])
+    .description("Interactive session (stays open until you exit)")
+    .action(async () => {
+      await runInteractiveSession();
+    });
+
+  program
+    .command("project-create [name]")
+    .alias("new")
+    .description("Create a new project")
+    .action(async (name) => {
+      try {
+        await requireAuth();
+        const { input: promptInput } = await import("@inquirer/prompts");
+        const projectName =
+          name ??
+          (await promptInput({
+            message: "Project name",
+            validate: (v) => (v.trim() ? true : "Required"),
+          }));
+        const spinner = createSpinner("Creating…");
+        const p = await api.createProject(projectName.trim());
+        spinner.succeed(`${p.name} (${p.slug})`);
+      } catch (error) {
+        handleError(error);
+      }
+    });
 }
 
 async function main(): Promise<void> {
@@ -484,8 +441,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    const action = await runInteractiveMenu();
-    await program.parseAsync([process.argv[0]!, CLI_BIN, action]);
+    await runInteractiveSession();
     return;
   }
 

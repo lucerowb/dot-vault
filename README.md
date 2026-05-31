@@ -217,7 +217,7 @@ npx @lucerowb/dot-vault@latest login --api-url https://your-dotvault.example.com
 # Or install globally (`dv`, `dot-vault`, `dotvault`)
 npm install -g @lucerowb/dot-vault
 dv login --api-url https://your-dotvault.example.com
-# Or run `dv` with no args for the interactive menu
+# Or run `dv` with no args for a persistent interactive session
 ```
 
 Full CLI docs: [`packages/cli/README.md`](./packages/cli/README.md) (shown on [npm](https://www.npmjs.com/package/@lucerowb/dot-vault)).
@@ -241,15 +241,14 @@ From the repo (development):
 
 ```bash
 pnpm build:cli
-node packages/cli/bin/dot-vault.js login
-node packages/cli/bin/dot-vault.js projects
-node packages/cli/bin/dot-vault.js envs my-project-slug
-node packages/cli/bin/dot-vault.js pull production -p my-project-slug -o .env
-node packages/cli/bin/dot-vault.js push .env -p my-project-slug -l staging
-node packages/cli/bin/dot-vault.js init   # detect local .env files and link a project
+pnpm dv login --api-url http://localhost:3000
+pnpm dv              # interactive session (project + env workflows)
+pnpm dv pl production -p my-slug -o .env
+pnpm dv ps .env.local -p my-slug -l staging
+pnpm dv project-create "My App"
 ```
 
-Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`list`), `pull`, `push`, `delete`, `init`.
+Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`e`), `pull` (`pl`), `push` (`ps`), `delete`, `init`, `project-create`, `shell`, `completion`, `help`. See [`packages/cli/README.md`](./packages/cli/README.md) and [`docs/CLI.md`](./docs/CLI.md).
 
 Default API URL is resolved at runtime (first match wins):
 

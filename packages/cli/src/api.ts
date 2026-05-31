@@ -8,15 +8,15 @@ export interface Project {
   createdAt: string;
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-interface ProjectEnv {
+export interface ProjectEnv {
   id: string;
   label: string;
   createdAt: string;
   updatedAt: string;
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface ApiErrorBody {
   error?: string | { code?: string; message?: string };
@@ -88,7 +88,6 @@ class ApiClient {
     return raw as T;
   }
 
-  // Auth (Better Auth email sign-in)
   async login(email: string, password: string): Promise<{ token: string }> {
     const config = await getConfig();
     const base = config.apiUrl.replace(/\/$/, "");
@@ -114,7 +113,7 @@ class ApiClient {
     const token = data.token ?? data.session?.token;
     if (!token) {
       throw new Error(
-        "Sign-in succeeded but no session token was returned. Redeploy the app with bearer auth enabled if this persists.",
+        "Sign-in succeeded but no session token was returned.",
       );
     }
 
@@ -139,12 +138,10 @@ class ApiClient {
     return { token: config.apiToken };
   }
 
-  // Projects
   async listProjects(): Promise<Project[]> {
     return this.request<Project[]>("/projects");
   }
 
-  /** Resolve project UUID from id, slug, or display name. */
   async resolveProjectId(ref: string): Promise<string> {
     const trimmed = ref.trim();
     if (UUID_RE.test(trimmed)) {
@@ -163,70 +160,101 @@ class ApiClient {
     if (!match) {
       const hints =
         projects.length > 0
-          ? projects.map((p) => p.slug).join(", ")
-          : "none — create one in the dashboard";
+          ? projects.map((p) => `${p.name} → slug \`${p.slug}\``).join(", ")
+          : "none yet";
       throw new Error(
-        `Project not found: "${ref}". Run \`dot-vault projects\` to see slugs (${hints}).`,
+        `Project not found: "${ref}". Available: ${hints}.`,
       );
     }
 
     return match.id;
   }
 
-  async getProject(id: string): Promise<Project> {
-    return this.request<Project>(`/projects/${id}`);
+  async resolveProject(ref: string): Promise<Project> {
+    const id = await this.resolveProjectId(ref);
+    const projects = await this.listProjects();
+    const p = projects.find((x) => x.id === id);
+    if (!p) throw new Error("Project not found.");
+    return p;
   }
 
-  async createProject(name: string): Promise<Project> {
+  async createProject(name: string, slug?: string): Promise<Project> {
     return this.request<Project>("/projects", {
       method: "POST",
-      body: { name },
+      body: slug ? { name, slug } : { name },
     });
   }
 
-  // Environment Variables
   async listEnvs(projectId: string): Promise<ProjectEnv[]> {
     return this.request<ProjectEnv[]>(`/projects/${projectId}/envs`);
   }
 
-  async getEnv(projectId: string, label: string): Promise<{ content: string }> {
-    return this.request<{ content: string }>(
-      `/projects/${projectId}/envs/${encodeURIComponent(label)}`,
-    );
+  async resolveEnvId(projectId: string, label: string): Promise<ProjectEnv> {
+    const envs = await this.listEnvs(projectId);
+    const needle = label.trim().toLowerCase();
+    const match = envs.find((e) => e.label.toLowerCase() === needle);
+    if (!match) {
+      const hints =
+        envs.length > 0
+          ? envs.map((e) => `\`${e.label}\``).join(", ")
+          : "none yet";
+      throw new Error(
+        `Environment "${label}" not found in this project. Available: ${hints}.`,
+      );
+    }
+    return match;
   }
 
-  async createEnv(
+  async getEnv(
+    projectId: string,
+    label: string,
+  ): Promise<{ content: string; env: ProjectEnv }> {
+    const env = await this.resolveEnvId(projectId, label);
+    const data = await this.request<{
+      content: string;
+      label: string;
+      id: string;
+    }>(`/projects/${projectId}/envs/${env.id}`);
+    return { content: data.content, env };
+  }
+
+  /** Create or update env by label (server upserts on POST). */
+  async upsertEnv(
     projectId: string,
     label: string,
     content: string,
   ): Promise<ProjectEnv> {
     return this.request<ProjectEnv>(`/projects/${projectId}/envs`, {
       method: "POST",
-      body: { label, content },
+      body: { label: label.trim(), content },
     });
   }
 
-  async updateEnv(
+  async updateEnvContent(
     projectId: string,
     label: string,
     content: string,
   ): Promise<ProjectEnv> {
-    return this.request<ProjectEnv>(
-      `/projects/${projectId}/envs/${encodeURIComponent(label)}`,
-      {
-        method: "PUT",
-        body: { content },
-      },
-    );
+    return this.upsertEnv(projectId, label, content);
+  }
+
+  async renameEnv(
+    projectId: string,
+    oldLabel: string,
+    newLabel: string,
+  ): Promise<ProjectEnv> {
+    const env = await this.resolveEnvId(projectId, oldLabel);
+    return this.request<ProjectEnv>(`/projects/${projectId}/envs/${env.id}`, {
+      method: "PATCH",
+      body: { label: newLabel.trim() },
+    });
   }
 
   async deleteEnv(projectId: string, label: string): Promise<void> {
-    await this.request<void>(
-      `/projects/${projectId}/envs/${encodeURIComponent(label)}`,
-      {
-        method: "DELETE",
-      },
-    );
+    const env = await this.resolveEnvId(projectId, label);
+    await this.request<void>(`/projects/${projectId}/envs/${env.id}`, {
+      method: "DELETE",
+    });
   }
 }
 

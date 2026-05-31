@@ -52,7 +52,7 @@ export function success(text: string): void {
 }
 
 const TIPS = [
-  `Run \`${CLI_BIN}\` with no args for the interactive menu.`,
+  `Run \`${CLI_BIN}\` with no args for an interactive session (stays open).`,
   `Short alias: \`${CLI_BIN} pl production\` = pull, \`${CLI_BIN} ps\` = push.`,
   `Tab-friendly: type to filter when picking projects or env labels.`,
   `Set API once: \`${CLI_BIN} login --api-url https://your-server.com\`.`,
@@ -81,7 +81,8 @@ export function printCheatsheet(): void {
     ["delete", "rm", "Remove env"],
     ["init", "setup", "Wizard"],
     ["logo", "art", "ASCII animation"],
-    ["menu", "(no cmd)", "Interactive hub"],
+    ["shell", "i · sh", "Interactive session"],
+    ["(no cmd)", "", "Same as shell"],
   ];
   for (const [cmd, alias, desc] of rows) {
     console.log(

@@ -43,7 +43,9 @@ export async function promptProject(
   purpose: string,
 ): Promise<string> {
   if (projects.length === 0) {
-    throw new Error("No projects — create one in the dashboard first.");
+    throw new Error(
+      "No projects yet — run `dv` → Create project, or `dv project-create`.",
+    );
   }
 
   if (projects.length === 1) {

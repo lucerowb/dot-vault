@@ -1,81 +1,28 @@
 /**
- * Pretext-inspired typographic ASCII for the terminal.
- * Brightness field + per-cell density ramp (see chenglou/pretext variable typographic ASCII).
+ * Pretext-inspired typographic ASCII (DotVault logo).
  * @see https://chenglou.me/pretext/variable-typographic-ascii/
- * @see https://github.com/chenglou/pretext
  */
 
 import chalk from "chalk";
+import { buildLogoMask, LOGO_MASK_H, LOGO_MASK_W } from "./logo-mask.js";
 
-/** Light → dark, mixed widths (monospace approximation of proportional density). */
-/** Light → dark; mixed glyphs approximate proportional density (pretext-style). */
 const DENSITY_RAMP =
   ' .\'`^",:;!iIl|/\\()[]{}1tfrjxcvuELXCJFZ0985@#&%$*+=~<>';
 
-const W = 54;
-const H = 12;
-
-/** DotVault wordmark mask (1 = inside glyph). */
-const MASK: number[][] = (() => {
-  const g = Array.from({ length: H }, () => Array<number>(W).fill(0));
-  const set = (x: number, y: number, v = 1) => {
-    if (y >= 0 && y < H && x >= 0 && x < W) g[y]![x] = v;
-  };
-  const rect = (x0: number, y0: number, x1: number, y1: number) => {
-    for (let y = y0; y <= y1; y++)
-      for (let x = x0; x <= x1; x++) set(x, y, 1);
-  };
-  // Shield
-  for (let y = 1; y <= 9; y++) {
-    const w = y < 5 ? 2 + y : 11 - y;
-    for (let x = 0; x < w; x++) set(x, y, 1);
-  }
-  set(1, 10, 1);
-  set(2, 10, 1);
-  set(3, 10, 1);
-  rect(3, 4, 6, 7);
-  rect(4, 3, 5, 3);
-  // Large "DV" monogram
-  const dv = [
-    "xxxxxx       xxxxx",
-    "xx   xx      xx  xx",
-    "xx   xx      xx  xx",
-    "xx   xx      xx  xx",
-    "xx   xx  xx  xx  xx",
-    "xxxxxx    xxxx  xx",
-    "xx        xx    xx",
-    "xx        xx    xx",
-    "xx        xx    xxxxx",
-    "xx        xx       xx",
-    "xx        xx       xx",
-    "xxxxxx    xxxxxxxxxx",
-  ];
-  const ox = 14;
-  const oy = 0;
-  for (let row = 0; row < dv.length && oy + row < H; row++) {
-    const line = dv[row]!;
-    for (let col = 0; col < line.length && ox + col < W; col++) {
-      if (line[col] === "x") set(ox + col, oy + row, 1);
-    }
-  }
-  return g;
-})();
+const MASK = buildLogoMask();
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
-/** Shared particle / attractor brightness field (animated). */
+/** Subtle field — stable on logo, shimmer on background. */
 export function sampleField(x: number, y: number, t: number): number {
-  const ax = 14 + Math.sin(t * 0.85) * 9;
-  const ay = 5 + Math.cos(t * 0.62) * 3.5;
-  const bx = 38 + Math.cos(t * 0.48) * 7;
-  const by = 6 + Math.sin(t * 0.93) * 4;
-  const d1 = 1 / (1 + Math.hypot(x - ax, y - ay) * 0.55);
-  const d2 = 1 / (1 + Math.hypot(x - bx, y - by) * 0.55);
+  const ax = 18 + Math.sin(t * 0.7) * 6;
+  const ay = 7 + Math.cos(t * 0.55) * 2.5;
+  const d1 = 1 / (1 + Math.hypot(x - ax, y - ay) * 0.65);
   const wave =
-    Math.sin(x * 0.42 + t * 1.1) * Math.cos(y * 0.38 - t * 0.75) * 0.18;
-  return clamp01(d1 * 0.38 + d2 * 0.38 + wave + 0.18);
+    Math.sin(x * 0.38 + t * 0.9) * Math.cos(y * 0.32 - t * 0.65) * 0.12;
+  return clamp01(d1 * 0.35 + wave + 0.25);
 }
 
 function pickChar(brightness: number): string {
@@ -84,22 +31,26 @@ function pickChar(brightness: number): string {
 }
 
 function colorize(char: string, brightness: number, mask: number): string {
-  if (mask < 0.15) return chalk.gray(char);
-  if (brightness > 0.72) return chalk.white.bold(char);
-  if (brightness > 0.48) return chalk.cyan(char);
-  if (brightness > 0.28) return chalk.blue(char);
-  return chalk.hex("#1e3a5f")(char);
+  if (mask < 0.1) return chalk.hex("#1a2744")(char);
+  if (mask > 0.9) return chalk.white.bold(char);
+  if (brightness > 0.65) return chalk.cyan.bold(char);
+  if (brightness > 0.4) return chalk.cyan(char);
+  if (brightness > 0.25) return chalk.blueBright(char);
+  return chalk.hex("#5b21b6")(char);
 }
 
 export function renderLogoFrame(t: number): string[] {
   const lines: string[] = [];
-  for (let y = 0; y < H; y++) {
+  for (let y = 0; y < LOGO_MASK_H; y++) {
     let line = "  ";
-    for (let x = 0; x < W; x++) {
-      const mask = MASK[y]![x]!;
+    for (let x = 0; x < LOGO_MASK_W; x++) {
+      const mask = MASK[y]?.[x] ?? 0;
       const field = sampleField(x, y, t);
-      const brightness = mask > 0 ? clamp01(field * 0.55 + mask * 0.55) : field * 0.22;
-      const ch = mask > 0 ? pickChar(brightness) : pickChar(brightness * 0.65);
+      const brightness =
+        mask > 0.15
+          ? clamp01(0.35 + mask * 0.55 + field * 0.15)
+          : clamp01(field * 0.35);
+      const ch = pickChar(brightness);
       line += colorize(ch, brightness, mask);
     }
     lines.push(line);
@@ -116,15 +67,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function printLogoBlock(t: number): number {
   const art = renderLogoFrame(t);
   const footer = chalk.gray(
-    `  ${"─".repeat(48)}\n  typographic field · inspired by ${chalk.cyan("pretext")} · ${chalk.white("DotVault")} ${chalk.gray("dv")}\n`,
+    `  ${"─".repeat(44)}\n  ${chalk.white("DotVault")} ${chalk.gray("·")} secure .env sync ${chalk.gray("·")} ${chalk.cyan("dv")}\n`,
   );
   for (const line of art) console.log(line);
   console.log(footer);
   return art.length + 2;
 }
 
-/** Animate logo frames in-place (TTY only). */
-export async function playLogoAnimation(frames = 12): Promise<void> {
+export async function playLogoAnimation(frames = 10): Promise<void> {
   if (!supportsVisual()) {
     printLogoBlock(0);
     return;
@@ -133,24 +83,19 @@ export async function playLogoAnimation(frames = 12): Promise<void> {
   const hide = "\x1b[?25l";
   const show = "\x1b[?25h";
   process.stdout.write(hide);
-
   try {
     let lineCount = printLogoBlock(0);
-    await sleep(75);
-
+    await sleep(80);
     for (let f = 1; f < frames; f++) {
-      const t = f * 0.42;
       process.stdout.write(`\x1b[${lineCount}A`);
-      const art = renderLogoFrame(t);
+      const art = renderLogoFrame(f * 0.35);
       const footer = chalk.gray(
-        `  ${"─".repeat(48)}\n  typographic field · inspired by ${chalk.cyan("pretext")} · ${chalk.white("DotVault")} ${chalk.gray("dv")}\n`,
+        `  ${"─".repeat(44)}\n  ${chalk.white("DotVault")} ${chalk.gray("·")} secure .env sync ${chalk.gray("·")} ${chalk.cyan("dv")}\n`,
       );
-      for (const line of art) {
-        process.stdout.write("\x1b[2K" + line + "\n");
-      }
+      for (const line of art) process.stdout.write("\x1b[2K" + line + "\n");
       process.stdout.write("\x1b[2K" + footer);
       lineCount = art.length + 2;
-      await sleep(75);
+      await sleep(80);
     }
     process.stdout.write(show);
     console.log();
@@ -160,7 +105,6 @@ export async function playLogoAnimation(frames = 12): Promise<void> {
   }
 }
 
-/** Single static frame (no animation). */
 export function printLogoStatic(): void {
   printLogoBlock(0);
   console.log();

@@ -4,7 +4,7 @@ Command-line tool for [DotVault](https://github.com/lucerowb/dot-vault) — sign
 
 **Short command:** `dv` (also `dot-vault`, `dotvault`)
 
-Requires **Node.js 18+** and a running DotVault instance.
+Requires **Node.js 18+** and a running DotVault instance. See [CHANGELOG](./CHANGELOG.md) for release notes.
 
 ## Install
 
@@ -15,16 +15,22 @@ npm install -g @lucerowb/dot-vault
 npx @lucerowb/dot-vault@latest
 ```
 
-## Interactive mode
+## Interactive session
 
-Run **`dv`** with no arguments — a **pretext-inspired** animated logo plays, then a menu guides you through sign-in, pull, push, and more. The effect uses a moving brightness field and density-matched characters (like [Variable Typographic ASCII](https://chenglou.me/pretext/variable-typographic-ascii/) from [chenglou/pretext](https://github.com/chenglou/pretext)).
+Run **`dv`** with no arguments — you get a **persistent session** (it stays open until you choose **Exit**). The banner uses a typographic ASCII render of the DotVault logo (cloud + vault), with a subtle animated field.
+
+**Mental model:** a **project** has a slug (`realpha`); **environments** are named `.env` files inside it (`production`, `local`). Use `-p realpha` for the project — not the env name.
 
 ```bash
-dv          # animated logo + interactive hub
-dv logo     # replay the logo animation
-dv help     # static logo + cheatsheet
-dv init     # setup wizard
+dv              # interactive session (default)
+dv shell        # same as above
+dv project-create "My App"   # create a project from the terminal
+dv logo         # replay the logo animation
+dv help         # cheatsheet
+dv init         # one-shot setup wizard (sign in + upload)
 ```
+
+Pick project once in the session; pull/push/edit/rename/delete envs without re-selecting the project each time.
 
 Set `NO_COLOR=1` or pipe output to disable animation and color.
 
@@ -54,6 +60,8 @@ Omit flags for **searchable prompts** (projects, env labels, local files).
 | Upload | `dv push` | `dv ps`, `dv up` |
 | Delete | `dv delete` | `dv rm` |
 | Wizard | `dv init` | `dv setup` |
+| Interactive session | `dv shell` | `dv i`, `dv sh` |
+| New project | `dv project-create` | `dv new` |
 
 ## Shell autocomplete
 

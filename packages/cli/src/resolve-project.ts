@@ -20,7 +20,9 @@ export async function resolveProjectForCommand(
   if (projects.length === 0) {
     console.log(chalk.yellow("\n  No projects yet."));
     console.log(
-      chalk.gray(`  Create one → ${resolveDefaultApiUrl()}/dashboard\n`),
+      chalk.gray(
+        `  Create one: run \`dv\` → Create project, or \`dv project-create\`, or ${resolveDefaultApiUrl()}/dashboard\n`,
+      ),
     );
     process.exit(1);
   }

@@ -223,19 +223,12 @@ This document provides a comprehensive overview of all features implemented in t
   - Organization-wide policies
 - **Documentation**: `docs/TEAM_WORKSPACES.md`
 
-#### 19. CLI Tool
+#### 19. CLI Tool (`@lucerowb/dot-vault`, command `dv`)
 
 - **Location**: `packages/cli/`
-- **Features**:
-  - Project management
-  - Environment variable CRUD
-  - Import/Export
-  - Member management
-  - Access requests
-  - Secret rotation
-  - Environment sync
-  - CI/CD workflow generation
-- **Documentation**: `docs/CLI.md`
+- **Shipped today**: sign-in, list/create projects, list/pull/push/rename/delete envs, interactive session, setup wizard, shell completion
+- **Web / API for**: sharing, rotation, team access, import-export at scale
+- **Documentation**: [`packages/cli/README.md`](../packages/cli/README.md), [`docs/CLI.md`](./CLI.md)
 
 ## Database Schema
 
