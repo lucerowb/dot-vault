@@ -211,13 +211,17 @@ You only need to edit `packages/cli/package.json` version manually for **minor/m
 
 ### Install CLI
 
-**Homebrew (macOS):**
+**Homebrew (macOS, project tap):**
+
+DotVault is distributed via a [project tap](https://github.com/lucerowb/dot-vault/blob/main/Formula/dot-vault.rb), not `homebrew/core` ([notability policy](https://docs.brew.sh/Acceptable-Formulae)).
 
 ```bash
 brew tap lucerowb/dot-vault https://github.com/lucerowb/dot-vault
 brew install dot-vault
 dv login --api-url https://your-dotvault.example.com
 ```
+
+Upgrade later: `brew update && brew upgrade dot-vault`
 
 **npm:** The unscoped name `dot-vault` is blocked by npm (too similar to `dotvault`). The package is published as **`@lucerowb/dot-vault`**:
 

@@ -19,6 +19,10 @@ class DotVault < Formula
   end
 
   test do
+    ENV["NO_COLOR"] = "1"
+
     assert_match version.to_s, shell_output("#{bin}/dv --version")
+    assert_match "login", shell_output("#{bin}/dv help")
+    assert_match "complete", shell_output("#{bin}/dv completion bash")
   end
 end

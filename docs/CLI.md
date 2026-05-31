@@ -6,11 +6,14 @@ The CLI signs in with your DotVault account and **pulls** / **pushes** encrypted
 
 ## Install
 
-### Homebrew (macOS)
+### Homebrew (macOS, project tap)
+
+Uses [`Formula/dot-vault.rb`](https://github.com/lucerowb/dot-vault/blob/main/Formula/dot-vault.rb) in this repo (not `homebrew/core`).
 
 ```bash
 brew tap lucerowb/dot-vault https://github.com/lucerowb/dot-vault
 brew install dot-vault
+brew upgrade dot-vault   # after brew update
 ```
 
 ### npm
