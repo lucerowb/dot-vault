@@ -4,10 +4,60 @@ let currentConfig = null;
 let currentTab = null;
 let detectedPlatform = null;
 
+const BUILTIN_DEFAULTS = window.__DOTVAULT_DEFAULTS__ || {
+  apiUrl: "",
+  serverConfigured: false,
+};
+
+const SETUP_PLACEHOLDER = "https://vault.example.com";
+
 // Initialize popup
 document.addEventListener("DOMContentLoaded", async () => {
   await init();
 });
+
+async function sendBackgroundMessage(message) {
+  try {
+    return await chrome.runtime.sendMessage(message);
+  } catch (error) {
+    console.error("DotVault background error:", error);
+    return {
+      success: false,
+      error:
+        "Extension background failed to start. Reload the extension at chrome://extensions.",
+    };
+  }
+}
+
+function updateInstanceFooter(apiUrl) {
+  const link = document.getElementById("instance-link");
+  if (!link) return;
+
+  if (!apiUrl?.trim()) {
+    link.href = "#";
+    link.textContent = "Server not configured";
+    return;
+  }
+
+  const base = apiUrl.replace(/\/$/, "");
+  link.href = base;
+  try {
+    link.textContent = new URL(base).host;
+  } catch {
+    link.textContent = base;
+  }
+}
+
+function isServerConfigured(config) {
+  return Boolean(config?.serverConfigured && config?.apiUrl?.trim());
+}
+
+function showFatalError(container, message) {
+  container.innerHTML = `
+    <div class="error-message" style="margin-bottom: 12px;">${escapeHtml(message)}</div>
+    <p style="font-size: 13px; color: #6b7280;">Open <strong>chrome://extensions</strong>, find DotVault, and click <strong>Reload</strong>. Then open this popup again.</p>
+  `;
+}
 
 async function init() {
   const content = document.getElementById("content");
@@ -17,35 +67,115 @@ async function init() {
   currentTab = tabs[0];
 
   // Detect platform
-  const platformResult = await chrome.runtime.sendMessage({
+  const platformResult = await sendBackgroundMessage({
     action: "detectPlatform",
     url: currentTab?.url || "",
   });
-  detectedPlatform = platformResult.success ? platformResult.platform : null;
+  if (!platformResult?.success && platformResult?.error) {
+    showFatalError(content, platformResult.error);
+    return;
+  }
+  detectedPlatform = platformResult?.success ? platformResult.platform : null;
 
   // Get config
-  const configResult = await chrome.runtime.sendMessage({
-    action: "getConfig",
-  });
-  if (configResult.success) {
-    currentConfig = configResult.config;
+  const configResult = await sendBackgroundMessage({ action: "getConfig" });
+  if (!configResult?.success) {
+    showFatalError(
+      content,
+      configResult?.error ||
+        "Could not reach the extension. Reload it at chrome://extensions.",
+    );
+    return;
   }
 
-  // Show appropriate view
-  if (!currentConfig?.apiToken) {
+  currentConfig = configResult.config;
+  updateInstanceFooter(currentConfig?.apiUrl);
+
+  if (!isServerConfigured(currentConfig)) {
+    showServerSetup(content);
+  } else if (!currentConfig?.apiToken) {
     showLogin(content);
   } else {
     showProjects(content);
   }
 }
 
+function showServerSetup(container) {
+  const prefill =
+    currentConfig?.apiUrl?.trim() ||
+    BUILTIN_DEFAULTS.apiUrl?.trim() ||
+    "";
+
+  const builtInHint = BUILTIN_DEFAULTS.serverConfigured
+    ? '<p class="setup-hint">Default server URL was set when this extension was built. Confirm or edit it below.</p>'
+    : '<p class="setup-hint">Enter your DotVault base URL (same as NEXT_PUBLIC_APP_URL on the server).</p>';
+
+  container.innerHTML = `
+    <div class="login-form">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔗</div>
+        <h3>Connect to your server</h3>
+        ${builtInHint}
+      </div>
+
+      <div class="form-group">
+        <label for="api-url">Server URL</label>
+        <input type="url" id="api-url" value="${escapeHtml(prefill)}" placeholder="${SETUP_PLACEHOLDER}" required>
+      </div>
+
+      <button class="btn btn-primary" id="save-server-btn">Save &amp; continue</button>
+      <div id="setup-error"></div>
+    </div>
+  `;
+
+  document
+    .getElementById("save-server-btn")
+    .addEventListener("click", async () => {
+      const apiUrlInput = document.getElementById("api-url").value.trim();
+      const errorDiv = document.getElementById("setup-error");
+      const btn = document.getElementById("save-server-btn");
+
+      if (!apiUrlInput) {
+        errorDiv.innerHTML =
+          '<div class="error-message">Enter your DotVault server URL</div>';
+        return;
+      }
+
+      try {
+        new URL(apiUrlInput);
+      } catch {
+        errorDiv.innerHTML =
+          '<div class="error-message">Use a full URL including https:// or http://</div>';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+
+      const result = await sendBackgroundMessage({
+        action: "setApiUrl",
+        apiUrl: apiUrlInput,
+      });
+
+      if (result?.success) {
+        await init();
+      } else {
+        errorDiv.innerHTML = `<div class="error-message">${escapeHtml(result?.error || "Could not save server URL")}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Save & continue";
+      }
+    });
+}
+
 function showLogin(container) {
+  const serverHost = formatServerHost(currentConfig?.apiUrl);
+
   container.innerHTML = `
     <div class="login-form">
       <div class="empty-state">
         <div class="empty-state-icon">🔐</div>
         <h3>Sign in to DotVault</h3>
-        <p>Access your secure environment variables</p>
+        <p class="setup-hint">Server: <strong>${escapeHtml(serverHost)}</strong></p>
       </div>
       
       <div class="form-group">
@@ -59,10 +189,18 @@ function showLogin(container) {
       </div>
       
       <button class="btn btn-primary" id="login-btn">Sign In</button>
+      <button type="button" class="btn btn-secondary" id="change-server-btn">Change server</button>
       
       <div id="login-error"></div>
     </div>
   `;
+
+  document
+    .getElementById("change-server-btn")
+    .addEventListener("click", async () => {
+      await sendBackgroundMessage({ action: "resetServer" });
+      await init();
+    });
 
   document.getElementById("login-btn").addEventListener("click", async () => {
     const email = document.getElementById("email").value;
@@ -79,20 +217,29 @@ function showLogin(container) {
     btn.disabled = true;
     btn.textContent = "Signing in...";
 
-    const result = await chrome.runtime.sendMessage({
+    const result = await sendBackgroundMessage({
       action: "login",
       email,
       password,
     });
 
-    if (result.success) {
+    if (result?.success) {
       await init();
     } else {
-      errorDiv.innerHTML = `<div class="error-message">${result.error || "Login failed"}</div>`;
+      errorDiv.innerHTML = `<div class="error-message">${escapeHtml(result?.error || "Login failed")}</div>`;
       btn.disabled = false;
       btn.textContent = "Sign In";
     }
   });
+}
+
+function formatServerHost(apiUrl) {
+  if (!apiUrl?.trim()) return "not set";
+  try {
+    return new URL(apiUrl.replace(/\/$/, "")).host;
+  } catch {
+    return apiUrl;
+  }
 }
 
 async function showProjects(container) {
@@ -105,7 +252,7 @@ async function showProjects(container) {
   const needsSync = Date.now() - lastSync > 5 * 60 * 1000; // 5 minutes
 
   if (needsSync || !currentConfig?.projects?.length) {
-    const syncResult = await chrome.runtime.sendMessage({
+    const syncResult = await sendBackgroundMessage({
       action: "syncProjects",
     });
     if (syncResult.success) {
@@ -118,7 +265,7 @@ async function showProjects(container) {
   let html = `
     <div class="status">
       <div class="status-icon connected"></div>
-      <span class="status-text">Connected to DotVault</span>
+      <span class="status-text">Connected · ${escapeHtml(formatServerHost(currentConfig?.apiUrl))}</span>
       <button class="btn btn-sm btn-secondary" id="logout-btn" style="margin-left: auto;">Logout</button>
     </div>
   `;
@@ -152,7 +299,7 @@ async function showProjects(container) {
       <div class="empty-state">
         <div class="empty-state-icon">📁</div>
         <h3>No projects found</h3>
-        <p>Create a project at dotvault.io</p>
+        <p>Create a project in your DotVault dashboard</p>
       </div>
     `;
   } else {
@@ -198,6 +345,7 @@ async function showProjects(container) {
   html += `
     <div class="actions">
       <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
+      <button class="btn btn-secondary" id="change-server-btn">Change server</button>
       <button class="btn btn-primary" id="open-dashboard-btn">Open Dashboard</button>
     </div>
   `;
@@ -206,16 +354,23 @@ async function showProjects(container) {
 
   // Add event listeners
   document.getElementById("logout-btn").addEventListener("click", async () => {
-    await chrome.runtime.sendMessage({ action: "logout" });
+    await sendBackgroundMessage({ action: "logout" });
     await init();
   });
+
+  document
+    .getElementById("change-server-btn")
+    .addEventListener("click", async () => {
+      await sendBackgroundMessage({ action: "resetServer" });
+      await init();
+    });
 
   document.getElementById("refresh-btn").addEventListener("click", async () => {
     const btn = document.getElementById("refresh-btn");
     btn.disabled = true;
     btn.textContent = "Refreshing...";
 
-    const result = await chrome.runtime.sendMessage({ action: "syncProjects" });
+    const result = await sendBackgroundMessage({ action: "syncProjects" });
     if (result.success) {
       currentConfig.projects = result.projects;
       await showProjects(container);
@@ -228,7 +383,8 @@ async function showProjects(container) {
   document
     .getElementById("open-dashboard-btn")
     .addEventListener("click", () => {
-      chrome.tabs.create({ url: "https://dotvault.io/dashboard" });
+      const base = currentConfig.apiUrl.replace(/\/$/, "");
+      chrome.tabs.create({ url: `${base}/dashboard` });
     });
 
   // Project expand/collapse
@@ -262,7 +418,7 @@ async function showEnvFill(container, projectId, envId, envLabel) {
     '<div class="loading"><div class="spinner"></div></div>';
 
   // Fetch env content
-  const result = await chrome.runtime.sendMessage({
+  const result = await sendBackgroundMessage({
     action: "getEnvContent",
     projectId,
     envId,
@@ -340,7 +496,7 @@ async function showEnvFill(container, projectId, envId, envLabel) {
       fillBtn.disabled = true;
       fillBtn.textContent = "Filling...";
 
-      const fillResult = await chrome.runtime.sendMessage({
+      const fillResult = await sendBackgroundMessage({
         action: "fillEnvVars",
         envVars,
         platform: detectedPlatform,

@@ -282,7 +282,7 @@ pnpm build:extension
 ```
 
 1. Chrome → `chrome://extensions` → **Developer mode** → **Load unpacked** → select `packages/browser-extension/dist`.
-2. Open the extension popup → connect your DotVault account.
+2. Open the popup → set your **server URL** (pre-filled from `DOTVAULT_API_URL` / `NEXT_PUBLIC_APP_URL` at build time when present) → sign in.
 3. On supported sites (Vercel, Netlify, GitHub Actions secrets, Railway, etc.), use the extension to fill variables from a selected project/env.
 
 See [docs/BROWSER_EXTENSION.md](./docs/BROWSER_EXTENSION.md) for platform URLs and permissions.

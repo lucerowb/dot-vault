@@ -1,10 +1,17 @@
 // Background service worker for DotVault extension
 
+import {
+  BUILTIN_API_URL,
+  BUILTIN_SERVER_CONFIGURED,
+} from "./generated/defaults";
+
 interface DotVaultConfig {
   apiUrl: string;
   apiToken: string | null;
   lastSync: number;
   projects: Project[];
+  /** User confirmed server URL (or set at build time from env). */
+  serverConfigured: boolean;
 }
 
 interface Project {
@@ -20,13 +27,49 @@ interface EnvFile {
   updatedAt: string;
 }
 
-// Default configuration (set your instance in the extension popup after install)
 const DEFAULT_CONFIG: DotVaultConfig = {
-  apiUrl: "http://localhost:3000",
+  apiUrl: BUILTIN_API_URL,
   apiToken: null,
   lastSync: 0,
   projects: [],
+  serverConfigured: BUILTIN_SERVER_CONFIGURED,
 };
+
+function normalizeApiUrl(url: string): string {
+  return url.trim().replace(/\/$/, "");
+}
+
+function originPattern(apiUrl: string): string {
+  const parsed = new URL(apiUrl);
+  return `${parsed.protocol}//${parsed.host}/*`;
+}
+
+/** Request host access for the configured DotVault instance (self-hosted HTTPS, etc.). */
+async function ensureApiHostPermission(
+  apiUrl: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const pattern = originPattern(apiUrl);
+    const has = await chrome.permissions.contains({ origins: [pattern] });
+    if (has) {
+      return { success: true };
+    }
+    const granted = await chrome.permissions.request({ origins: [pattern] });
+    if (!granted) {
+      return {
+        success: false,
+        error:
+          "Allow access to your DotVault server when prompted, or check the server URL.",
+      };
+    }
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Invalid server URL",
+    };
+  }
+}
 
 // Initialize storage on install
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -51,6 +94,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: true });
           break;
 
+        case "setApiUrl": {
+          const normalized = normalizeApiUrl(request.apiUrl);
+          const permission = await ensureApiHostPermission(normalized);
+          if (!permission.success) {
+            sendResponse(permission);
+            break;
+          }
+          await setConfig({
+            apiUrl: normalized,
+            serverConfigured: true,
+            apiToken: null,
+            projects: [],
+            lastSync: 0,
+          });
+          sendResponse({ success: true, apiUrl: normalized });
+          break;
+        }
+
         case "login":
           const loginResult = await login(request.email, request.password);
           sendResponse(loginResult);
@@ -58,6 +119,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "logout":
           await logout();
+          sendResponse({ success: true });
+          break;
+
+        case "resetServer":
+          await resetServer();
           sendResponse({ success: true });
           break;
 
@@ -80,7 +146,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "fillEnvVars": {
-          const tabId = sender.tab?.id;
+          let tabId = sender.tab?.id;
+          if (tabId === undefined) {
+            const [activeTab] = await chrome.tabs.query({
+              active: true,
+              currentWindow: true,
+            });
+            tabId = activeTab?.id;
+          }
           if (tabId === undefined) {
             sendResponse({ success: false, error: "No active tab" });
             break;
@@ -110,13 +183,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function apiBase(config: DotVaultConfig): string {
-  return config.apiUrl.replace(/\/$/, "");
+  return normalizeApiUrl(config.apiUrl);
 }
 
 // Get configuration from storage
 async function getConfig(): Promise<DotVaultConfig> {
   const result = await chrome.storage.local.get("config");
-  return result.config || DEFAULT_CONFIG;
+  const stored = result.config as Partial<DotVaultConfig> | undefined;
+  const config: DotVaultConfig = {
+    ...DEFAULT_CONFIG,
+    ...stored,
+  };
+
+  // Migrate installs from before serverConfigured existed
+  if (!config.serverConfigured && config.apiUrl?.trim()) {
+    config.serverConfigured = true;
+  }
+
+  return config;
 }
 
 // Set configuration in storage
@@ -134,6 +218,18 @@ async function login(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const config = await getConfig();
+    if (!config.serverConfigured || !config.apiUrl?.trim()) {
+      return {
+        success: false,
+        error: "Set your DotVault server URL before signing in.",
+      };
+    }
+
+    const permission = await ensureApiHostPermission(apiBase(config));
+    if (!permission.success) {
+      return permission;
+    }
+
     const response = await fetch(`${apiBase(config)}/api/auth/sign-in/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -165,6 +261,16 @@ async function login(
 // Logout from DotVault
 async function logout(): Promise<void> {
   await setConfig({
+    apiToken: null,
+    projects: [],
+    lastSync: 0,
+  });
+}
+
+async function resetServer(): Promise<void> {
+  await setConfig({
+    apiUrl: BUILTIN_API_URL,
+    serverConfigured: BUILTIN_SERVER_CONFIGURED,
     apiToken: null,
     projects: [],
     lastSync: 0,
@@ -441,17 +547,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // Context menu for quick actions
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "dotvault-fill",
-    title: "Fill with DotVault",
-    contexts: ["page"],
-    documentUrlPatterns: [
-      "https://*.vercel.com/*",
-      "https://*.netlify.com/*",
-      "https://github.com/*",
-      "https://*.railway.app/*",
-      "https://*.render.com/*",
-    ],
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "dotvault-fill",
+      title: "Fill with DotVault",
+      contexts: ["page"],
+      documentUrlPatterns: [
+        "https://*.vercel.com/*",
+        "https://*.netlify.com/*",
+        "https://github.com/*",
+        "https://*.railway.app/*",
+        "https://*.render.com/*",
+      ],
+    });
   });
 });
 

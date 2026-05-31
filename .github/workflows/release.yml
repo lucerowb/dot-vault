@@ -207,6 +207,11 @@ jobs:
           ls -la "dotvault-cli-${VERSION}".*
 
       - name: Build browser extension
+        env:
+          # Optional repo/org variable: bakes default server URL into release builds
+          DOTVAULT_API_URL: ${{ vars.DOTVAULT_API_URL }}
+          BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
         run: pnpm -C packages/browser-extension run build
 
       - name: Verify browser extension icons

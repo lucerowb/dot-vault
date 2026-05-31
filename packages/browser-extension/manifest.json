@@ -3,7 +3,14 @@
   "name": "DotVault - Secure Env Manager",
   "version": "1.0.0",
   "description": "Securely fill environment variables into Vercel, Netlify, GitHub, AWS, and more",
-  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "alarms",
+    "contextMenus"
+  ],
   "host_permissions": [
     "https://*.vercel.com/*",
     "https://*.netlify.com/*",

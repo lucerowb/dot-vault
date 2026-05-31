@@ -16,34 +16,38 @@ The DotVault Browser Extension enables one-click secret injection into popular d
 2. Click **Add to Firefox**
 3. Confirm installation
 
-### Manual Installation (Developer Mode)
+### Manual Installation (GitHub release or local build)
+
+**From a GitHub release**
+
+1. Download `dotvault-extension-<version>.zip` from the [releases](https://github.com/lucerowb/dot-vault/releases) page (not the source archive).
+2. Unzip it to a folder (for example `~/dotvault-extension`).
+3. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the **unzipped folder** (the folder that contains `manifest.json` at its root).
+
+**From this monorepo**
 
 ```bash
-# Clone the repository
-git clone https://github.com/dotvault/extension.git
-cd extension
-
-# Install dependencies
-npm install
-
-# Build extension
-npm run build
-
-# Load in Chrome
-# 1. Open chrome://extensions
-# 2. Enable Developer Mode
-# 3. Click Load Unpacked
-# 4. Select the dist/ folder
+pnpm install
+pnpm build:extension
+# Load unpacked: packages/browser-extension/dist/
 ```
+
+After updating the extension, click **Reload** on `chrome://extensions` so the background service worker picks up changes.
 
 ## Setup
 
 ### 1. Connect to DotVault
 
 1. Click the DotVault icon in your browser toolbar
-2. Click **Connect Account**
-3. Sign in with your DotVault credentials
-4. Authorize the extension
+2. **Server URL (required first step)** — enter your instance base URL (same as `NEXT_PUBLIC_APP_URL` / `BETTER_AUTH_URL`), then click **Save & continue**. When Chrome prompts for host access, allow it.
+3. Sign in with your DotVault email and password
+
+**Build-time default (optional):** When you run `pnpm build:extension`, the build reads `DOTVAULT_API_URL`, then `BETTER_AUTH_URL`, then `NEXT_PUBLIC_APP_URL` from the repo root `.env` / `.env.local` (same order as the CLI). If set, that URL is baked into the extension and the setup step is pre-filled. Generic GitHub release zips are built without those env vars, so end users always configure the server in the popup.
+
+```bash
+# Example: org-specific extension build
+DOTVAULT_API_URL=https://vault.example.com pnpm build:extension
+```
 
 ### 2. Select Project
 
@@ -238,6 +242,14 @@ Configure different defaults for each project:
 
 ## Troubleshooting
 
+### Blank popup (header only, no sign-in form)
+
+Usually the background service worker failed to start (often after loading an older build). On `chrome://extensions`, click **Reload** on DotVault, then open the popup again. If it persists, remove the extension, unzip a fresh copy from the latest GitHub release, and load unpacked again.
+
+### Wrong server / login fails
+
+The footer link shows your configured instance host. On sign-in, set **Server URL** to your real dashboard origin (not a marketing domain unless that is where your app runs). Approve the Chrome permission prompt for that host.
+
 ### Extension Not Detecting Fields
 
 1. Refresh the page
@@ -272,21 +284,11 @@ If a platform changes their UI:
 ### Building from Source
 
 ```bash
-# Clone repository
-git clone https://github.com/dotvault/extension.git
-cd extension
+# From the dot-vault monorepo root
+pnpm install
+pnpm build:extension
 
-# Install dependencies
-npm install
-
-# Development build
-npm run dev
-
-# Production build
-npm run build
-
-# Run tests
-npm test
+# Load unpacked from packages/browser-extension/dist/
 ```
 
 ### Adding New Platform Support
