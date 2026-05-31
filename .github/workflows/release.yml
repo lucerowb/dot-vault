@@ -112,18 +112,6 @@ jobs:
           PACKED=$(ls -1 "$GITHUB_WORKSPACE"/*.tgz | head -1)
           mv "$PACKED" "dotvault-cli-${VERSION}.npm.tgz"
 
-      - name: Publish CLI to npm
-        working-directory: packages/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::warning::NPM_TOKEN secret is not set — skipped npm publish."
-            echo "Add an npm Automation token as repository secret NPM_TOKEN to enable npx dot-vault."
-            exit 0
-          fi
-          npm publish --access public
-
       - name: Build browser extension
         run: pnpm -C packages/browser-extension run build
 
@@ -153,3 +141,20 @@ jobs:
             dotvault-extension-*
             SHA256SUMS-*
           fail_on_unmatched_files: true
+
+      # Runs after GitHub Release so npm auth issues never block release assets.
+      - name: Publish CLI to npm
+        continue-on-error: true
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN secret is not set — skipped npm publish."
+            exit 0
+          fi
+          npm publish --access public || {
+            echo "::warning::npm publish failed. If you use 2FA on npmjs.com, create a Granular Access Token"
+            echo "with Publish permission and enable \"Bypass 2FA for automation\", then update the NPM_TOKEN secret."
+            exit 1
+          }

@@ -175,7 +175,16 @@ Releases are **automatic** when you merge to `main` (with changes under `package
 | Secret | Required for | How to get it |
 | ------ | ------------- | ------------- |
 | *(none)* | GitHub Release assets only | Built-in `GITHUB_TOKEN` |
-| **`NPM_TOKEN`** | **`npx dot-vault`** on npm | [npmjs.com](https://www.npmjs.com/) → Account → **Access Tokens** → **Generate Automation Token** (type: Publish) → add as repo secret `NPM_TOKEN` |
+| **`NPM_TOKEN`** | **`npx dot-vault`** on npm | See [npm token setup](#npm-token-setup-for-npx-dot-vault) below |
+
+#### npm token setup (for `npx dot-vault`)
+
+1. [npmjs.com](https://www.npmjs.com/) → **Profile** → **Access Tokens** → **Generate New Token** → **Granular Access Token**
+2. Permissions: **Read and write** for packages (or limit to `dot-vault`)
+3. Enable **“Bypass two-factor authentication (2FA) for automation”** (required for CI; npm returns 403 without it)
+4. Copy the token → GitHub repo **Settings → Secrets → Actions** → `NPM_TOKEN`
+
+Classic **Automation** tokens also work. A normal publish token without bypass 2FA will fail in GitHub Actions with `403 Forbidden`.
 
 **To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, wait for the **Release** workflow (~2–5 min). With `NPM_TOKEN` set, the same run publishes to npm.
 
