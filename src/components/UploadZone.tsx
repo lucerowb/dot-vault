@@ -25,7 +25,7 @@ export function UploadZone({ disabled, onFile, onPasteText }: Props) {
       submittedRef.current = true;
       onPasteText(trimmed);
     },
-    [disabled, onPasteText]
+    [disabled, onPasteText],
   );
 
   const onDrop = useCallback(
@@ -37,7 +37,7 @@ export function UploadZone({ disabled, onFile, onPasteText }: Props) {
       if (!file) return;
       void file.text().then((t) => onFile(t, file.name));
     },
-    [disabled, onFile]
+    [disabled, onFile],
   );
 
   return (

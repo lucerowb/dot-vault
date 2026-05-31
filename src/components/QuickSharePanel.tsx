@@ -43,7 +43,7 @@ export function QuickSharePanel() {
       setError(
         e instanceof Error
           ? e.message
-          : "Something went wrong. Check your connection and try again."
+          : "Something went wrong. Check your connection and try again.",
       );
     } finally {
       setBusy(false);
@@ -62,8 +62,8 @@ export function QuickSharePanel() {
           Quick share
         </motion.h1>
         <p className="mt-3 text-balance text-zinc-600 dark:text-zinc-400">
-          Encrypt in your browser, upload ciphertext only. The key stays in the URL
-          fragment — never sent to the server. Need long-term storage?{" "}
+          Encrypt in your browser, upload ciphertext only. The key stays in the
+          URL fragment — never sent to the server. Need long-term storage?{" "}
           <Link
             href="/dashboard"
             className="text-blue-700 hover:underline dark:text-blue-400"

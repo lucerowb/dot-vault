@@ -5,11 +5,11 @@
 - **Quick share** — encrypt in the browser (**AES-256-GCM**), store ciphertext in [Upstash Redis](https://upstash.com/), put the key in the **URL fragment** so it never hits your server.
 - **Cloud vault** — sign in with [**Better Auth**](https://www.better-auth.com/) (email + password), organize **projects**, upload and **view / update / delete** env blobs stored in [**Supabase Postgres**](https://supabase.com/) via [Drizzle ORM](https://orm.drizzle.team/). Payloads are **encrypted at rest** on the server with **AES-256-GCM** using `STORAGE_ENCRYPTION_KEY` (see security note below).
 
-| | |
-| --- | --- |
+|                |                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------- |
 | **Maintainer** | Srijan Bajracharya ([srijan.bajracharya97@gmail.com](mailto:srijan.bajracharya97@gmail.com)) |
-| **Repository** | [github.com/lucerowb/dot-vault](https://github.com/lucerowb/dot-vault) |
-| **License** | MIT (see [LICENSE](./LICENSE)) |
+| **Repository** | [github.com/lucerowb/dot-vault](https://github.com/lucerowb/dot-vault)                       |
+| **License**    | MIT (see [LICENSE](./LICENSE))                                                               |
 
 ---
 
@@ -69,15 +69,15 @@ If `pnpm install` complains about ignored build scripts (`esbuild`), run `pnpm a
 
 ### Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Next.js dev server. |
-| `pnpm build` / `pnpm start` | Production build / server. |
-| `pnpm lint` | ESLint. |
-| `pnpm test` | Vitest (crypto helpers). |
-| `pnpm db:generate` | Regenerate Drizzle migrations after schema edits. |
-| `pnpm db:migrate` | Apply migrations. |
-| `pnpm db:push` | Push schema (dev prototyping). |
+| Command                     | Purpose                                           |
+| --------------------------- | ------------------------------------------------- |
+| `pnpm dev`                  | Next.js dev server.                               |
+| `pnpm build` / `pnpm start` | Production build / server.                        |
+| `pnpm lint`                 | ESLint.                                           |
+| `pnpm test`                 | Vitest (crypto helpers).                          |
+| `pnpm db:generate`          | Regenerate Drizzle migrations after schema edits. |
+| `pnpm db:migrate`           | Apply migrations.                                 |
+| `pnpm db:push`              | Push schema (dev prototyping).                    |
 
 For Playwright: `pnpm exec playwright install chromium` then `pnpm test:e2e`.
 
@@ -85,15 +85,15 @@ For Playwright: `pnpm exec playwright install chromium` then `pnpm test:e2e`.
 
 ## Environment variables
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `DATABASE_URL` | **Yes** (cloud vault) | Supabase Postgres URI (`?sslmode=require`). |
-| `BETTER_AUTH_SECRET` | **Yes** (prod) | Long random secret (`openssl rand -base64 32`). |
-| `BETTER_AUTH_URL` | Recommended | Same origin as the app, e.g. `https://your-app.vercel.app`. |
-| `STORAGE_ENCRYPTION_KEY` | **Yes** (cloud vault) | Base64 **32-byte** key for at-rest env encryption (`openssl rand -base64 32`). |
-| `NEXT_PUBLIC_APP_URL` | Recommended | Public URL for links and auth client. |
-| `UPSTASH_REDIS_REST_URL` | For quick share | Upstash Redis REST URL. |
-| `UPSTASH_REDIS_REST_TOKEN` | For quick share | Upstash REST token. |
+| Variable                   | Required              | Description                                                                    |
+| -------------------------- | --------------------- | ------------------------------------------------------------------------------ |
+| `DATABASE_URL`             | **Yes** (cloud vault) | Supabase Postgres URI (`?sslmode=require`).                                    |
+| `BETTER_AUTH_SECRET`       | **Yes** (prod)        | Long random secret (`openssl rand -base64 32`).                                |
+| `BETTER_AUTH_URL`          | Recommended           | Same origin as the app, e.g. `https://your-app.vercel.app`.                    |
+| `STORAGE_ENCRYPTION_KEY`   | **Yes** (cloud vault) | Base64 **32-byte** key for at-rest env encryption (`openssl rand -base64 32`). |
+| `NEXT_PUBLIC_APP_URL`      | Recommended           | Public URL for links and auth client.                                          |
+| `UPSTASH_REDIS_REST_URL`   | For quick share       | Upstash Redis REST URL.                                                        |
+| `UPSTASH_REDIS_REST_TOKEN` | For quick share       | Upstash REST token.                                                            |
 
 ### Security note (cloud vault)
 
@@ -139,11 +139,11 @@ Keep `deleteToken` private to the sender; it is **not** part of the share URL.
 
 Returns `{ iv, ciphertext, expiresAt, oneTime }`. One-time vaults are deleted on first successful read.
 
-| Status | Meaning |
-| --- | --- |
-| `404` | Missing or expired vault. |
-| `410` | One-time vault already consumed. |
-| `429` | Rate limited. |
+| Status | Meaning                          |
+| ------ | -------------------------------- |
+| `404`  | Missing or expired vault.        |
+| `410`  | One-time vault already consumed. |
+| `429`  | Rate limited.                    |
 
 ### `DELETE /api/vault/:token`
 
@@ -151,18 +151,18 @@ Headers: `X-Delete-Token: <deleteToken>` — removes the vault and consumption t
 
 ### Cloud vault (session cookie required)
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/projects` | List your projects. |
-| `POST` | `/api/projects` | Body `{ "name": "…", "slug?" }` — create project. |
-| `GET` | `/api/projects/:id` | Project metadata. |
-| `PATCH` | `/api/projects/:id` | Body `{ "name?", "slug?" }`. |
-| `DELETE` | `/api/projects/:id` | Deletes project and env rows. |
-| `GET` | `/api/projects/:id/envs` | List env labels (no decrypted content). |
-| `POST` | `/api/projects/:id/envs` | Body `{ "label": "staging", "content": "…" }` — create **or overwrite** label. |
-| `GET` | `/api/projects/:id/envs/:envId` | Decrypted plaintext (authorized owner only). |
-| `PATCH` | `/api/projects/:id/envs/:envId` | Partial update `label` and/or `content`. |
-| `DELETE` | `/api/projects/:id/envs/:envId` | Remove env blob. |
+| Method   | Path                            | Description                                                                    |
+| -------- | ------------------------------- | ------------------------------------------------------------------------------ |
+| `GET`    | `/api/projects`                 | List your projects.                                                            |
+| `POST`   | `/api/projects`                 | Body `{ "name": "…", "slug?" }` — create project.                              |
+| `GET`    | `/api/projects/:id`             | Project metadata.                                                              |
+| `PATCH`  | `/api/projects/:id`             | Body `{ "name?", "slug?" }`.                                                   |
+| `DELETE` | `/api/projects/:id`             | Deletes project and env rows.                                                  |
+| `GET`    | `/api/projects/:id/envs`        | List env labels (no decrypted content).                                        |
+| `POST`   | `/api/projects/:id/envs`        | Body `{ "label": "staging", "content": "…" }` — create **or overwrite** label. |
+| `GET`    | `/api/projects/:id/envs/:envId` | Decrypted plaintext (authorized owner only).                                   |
+| `PATCH`  | `/api/projects/:id/envs/:envId` | Partial update `label` and/or `content`.                                       |
+| `DELETE` | `/api/projects/:id/envs/:envId` | Remove env blob.                                                               |
 
 ---
 

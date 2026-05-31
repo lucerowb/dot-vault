@@ -1,9 +1,21 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { schema } from "./schema";
+import {
+  auditLogRelations,
+  projectEnvVersionRelations,
+  userRelations,
+} from "./relations";
+import { schema as tables } from "./schema";
 
 export * from "./schema";
+
+const schema = {
+  ...tables,
+  userRelations,
+  projectEnvVersionRelations,
+  auditLogRelations,
+};
 
 const conn = globalThis as unknown as {
   __dotvault_sql?: ReturnType<typeof postgres>;

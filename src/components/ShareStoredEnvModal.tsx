@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 
+import { getErrorMessage } from "@/lib/api-client";
+import { useEnvContent } from "@/hooks/use-projects";
 import { createQuickShare } from "@/lib/quick-share-client";
 import { TTL_OPTIONS, type VaultTtlSeconds } from "@/lib/vault-ttl";
 
@@ -37,6 +39,8 @@ export function ShareStoredEnvModal({
     token: string;
   } | null>(null);
 
+  const envQuery = useEnvContent(projectId, envId, open);
+
   if (!open) return null;
 
   async function generate() {
@@ -47,39 +51,37 @@ export function ShareStoredEnvModal({
     }
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/envs/${encodeURIComponent(envId)}`,
-        { cache: "no-store" }
-      );
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: { content: string };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success || !json.data) {
-        setError(json.error?.message ?? "Could not load env from vault.");
+      let plaintext = envQuery.data?.content;
+      if (!plaintext) {
+        const fetched = await envQuery.refetch();
+        plaintext = fetched.data?.content;
+      }
+      if (!plaintext) {
+        setError("Could not load env from vault.");
         return;
       }
 
       const result = await createQuickShare({
-        plaintext: json.data.content,
+        plaintext,
         ttl,
         oneTime,
         passphrase: usePassphrase ? passphrase : undefined,
       });
       setShare(result);
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Could not create quick share link."
-      );
+      setError(getErrorMessage(e, "Could not create quick share link."));
     } finally {
       setBusy(false);
     }
   }
 
   function handleClose() {
+    setBusy(false);
     setShare(null);
     setError(null);
+    setPassphrase("");
+    setUsePassphrase(false);
+    setOneTime(false);
     onClose();
   }
 
@@ -97,7 +99,10 @@ export function ShareStoredEnvModal({
         className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-xl dark:border dark:border-zinc-700 dark:bg-zinc-900"
       >
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4 dark:border-zinc-700">
-          <h2 id="share-env-title" className="font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2
+            id="share-env-title"
+            className="font-semibold text-zinc-900 dark:text-zinc-100"
+          >
             Quick share · {envLabel}
           </h2>
           <button
@@ -112,11 +117,14 @@ export function ShareStoredEnvModal({
         <div className="space-y-5 p-5">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Creates an <strong>ephemeral Redis</strong> link (same crypto as{" "}
-            <Link href="/quick-share" className="text-blue-700 underline dark:text-blue-400">
+            <Link
+              href="/quick-share"
+              className="text-blue-700 underline dark:text-blue-400"
+            >
               quick share
             </Link>
-            ). Your cloud-stored ciphertext is untouched; recipients only get what
-            you send in this new link until it expires or is revoked.
+            ). Your cloud-stored ciphertext is untouched; recipients only get
+            what you send in this new link until it expires or is revoked.
           </p>
 
           {!share ? (
@@ -179,7 +187,10 @@ export function ShareStoredEnvModal({
                 </div>
               </div>
               {error ? (
-                <p className="text-sm text-red-700 dark:text-red-400" role="alert">
+                <p
+                  className="text-sm text-red-700 dark:text-red-400"
+                  role="alert"
+                >
                   {error}
                 </p>
               ) : null}

@@ -97,7 +97,7 @@ async function normalizePair(lightPath, darkPath, targetWidth) {
     "+",
     path.basename(darkPath),
     "→",
-    `${targetWidth}×${canvasH}`
+    `${targetWidth}×${canvasH}`,
   );
 }
 
@@ -134,12 +134,12 @@ async function main() {
   await normalizePair(
     path.join(brand, "logo-wordmark.png"),
     path.join(brand, "logo-wordmark-dark.png"),
-    2048
+    2048,
   );
   await normalizePair(
     path.join(brand, "logo-mark.png"),
     path.join(brand, "logo-mark-dark.png"),
-    1024
+    1024,
   );
   await writeAppIconsFromMark(path.join(brand, "logo-mark.png"));
 }

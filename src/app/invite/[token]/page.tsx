@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { getErrorMessage } from "@/lib/api-client";
+import {
+  useAcceptInvitation,
+  useInvitationPreview,
+} from "@/hooks/use-projects";
 
 function normEmail(s: string) {
   return s.trim().toLowerCase();
@@ -16,43 +21,15 @@ export default function InviteAcceptPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = authClient.useSession();
 
-  const [preview, setPreview] = useState<{
-    projectName: string;
-    email: string;
-    role: string;
-    expiresAt: number;
-  } | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [acceptBusy, setAcceptBusy] = useState(false);
+  const previewQuery = useInvitationPreview(token);
+  const acceptInvitation = useAcceptInvitation();
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
-  const loadPreview = useCallback(async () => {
-    setLoadError(null);
-    const res = await fetch(
-      `/api/projects/invitations/by-token?token=${encodeURIComponent(token)}`,
-      { cache: "no-store" }
-    );
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: {
-        projectName: string;
-        email: string;
-        role: string;
-        expiresAt: number;
-      };
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success || !json.data) {
-      setLoadError(json.error?.message ?? "Invalid or expired invitation.");
-      setPreview(null);
-      return;
-    }
-    setPreview(json.data);
-  }, [token]);
-
-  useEffect(() => {
-    queueMicrotask(() => void loadPreview());
-  }, [loadPreview]);
+  const preview = previewQuery.data ?? null;
+  const loadError =
+    previewQuery.error != null
+      ? getErrorMessage(previewQuery.error, "Invalid or expired invitation.")
+      : null;
 
   const loginHref = `/login?next=${encodeURIComponent(`/invite/${token}`)}`;
   const registerHref = `/register?next=${encodeURIComponent(`/invite/${token}`)}`;
@@ -66,26 +43,12 @@ export default function InviteAcceptPage() {
 
   async function accept() {
     setAcceptError(null);
-    setAcceptBusy(true);
     try {
-      const res = await fetch("/api/projects/invitations/accept", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: { projectId: string };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success || !json.data?.projectId) {
-        setAcceptError(json.error?.message ?? "Could not accept invitation.");
-        return;
-      }
-      router.push(`/dashboard/projects/${json.data.projectId}`);
+      const result = await acceptInvitation.mutateAsync(token);
+      router.push(`/dashboard/projects/${result.projectId}`);
       router.refresh();
-    } finally {
-      setAcceptBusy(false);
+    } catch (err) {
+      setAcceptError(getErrorMessage(err, "Could not accept invitation."));
     }
   }
 
@@ -95,7 +58,9 @@ export default function InviteAcceptPage() {
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           Invitation
         </h1>
-        <p className="mt-3 text-sm text-red-700 dark:text-red-400">{loadError}</p>
+        <p className="mt-3 text-sm text-red-700 dark:text-red-400">
+          {loadError}
+        </p>
         <Link
           href="/dashboard"
           className="mt-6 inline-block text-sm text-blue-700 hover:underline dark:text-blue-400"
@@ -124,7 +89,9 @@ export default function InviteAcceptPage() {
           .
         </p>
       ) : (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+          Loading…
+        </p>
       )}
 
       {sessionPending ? (
@@ -177,11 +144,13 @@ export default function InviteAcceptPage() {
           ) : null}
           <button
             type="button"
-            disabled={acceptBusy}
+            disabled={acceptInvitation.isPending}
             onClick={() => void accept()}
             className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
-            {acceptBusy ? "Joining…" : "Accept and open project"}
+            {acceptInvitation.isPending
+              ? "Joining…"
+              : "Accept and open project"}
           </button>
         </div>
       ) : null}

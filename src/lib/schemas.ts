@@ -6,8 +6,7 @@ function decodeBase64ToBytes(value: string): Uint8Array | null {
   try {
     const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
     const pad = normalized.length % 4;
-    const padded =
-      pad === 0 ? normalized : normalized + "=".repeat(4 - pad);
+    const padded = pad === 0 ? normalized : normalized + "=".repeat(4 - pad);
     const binary = atob(padded);
     const out = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
@@ -21,7 +20,7 @@ const ttlSchema = z.custom<VaultTtlSeconds>(
   (val) =>
     typeof val === "number" &&
     (VAULT_TTL_SECONDS as readonly number[]).includes(val),
-  "Invalid TTL"
+  "Invalid TTL",
 );
 
 export const CreateVaultSchema = z.object({

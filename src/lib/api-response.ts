@@ -25,7 +25,7 @@ export function jsonError(
   code: string,
   message: string,
   status: number,
-  headers?: HeadersInit
+  headers?: HeadersInit,
 ) {
   const body: ApiError = {
     success: false,
@@ -42,7 +42,7 @@ export function jsonVaultError(
   code: string,
   message: string,
   status: number,
-  headers?: HeadersInit
+  headers?: HeadersInit,
 ) {
   const merged = new Headers(VAULT_RESPONSE_HEADERS);
   if (headers) {

@@ -40,7 +40,9 @@ export function LogoMark({ className, priority }: MarkProps) {
   const src = dark ? "/brand/logo-mark-dark.png" : "/brand/logo-mark.png";
   return (
     <span
-      className={["relative inline-block shrink-0", className].filter(Boolean).join(" ")}
+      className={["relative inline-block shrink-0", className]
+        .filter(Boolean)
+        .join(" ")}
     >
       <Image
         src={src}
@@ -62,7 +64,9 @@ type WordmarkProps = {
 /** Text wordmark. */
 export function LogoWordmark({ className, priority }: WordmarkProps) {
   const dark = useHtmlDarkAfterMount();
-  const src = dark ? "/brand/logo-wordmark-dark.png" : "/brand/logo-wordmark.png";
+  const src = dark
+    ? "/brand/logo-wordmark-dark.png"
+    : "/brand/logo-wordmark.png";
   return (
     <Image
       src={src}

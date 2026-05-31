@@ -42,7 +42,7 @@ export async function POST(request: Request, ctx: Ctx) {
     return jsonError(
       "VALIDATION_ERROR",
       parsed.error.issues.map((i) => i.message).join(" "),
-      400
+      400,
     );
   }
 
@@ -73,12 +73,16 @@ export async function POST(request: Request, ctx: Ctx) {
     .where(
       and(
         eq(projectMember.projectId, projectId),
-        sql`lower(${user.email}) = ${email}`
-      )
+        sql`lower(${user.email}) = ${email}`,
+      ),
     )
     .limit(1);
   if (existingMember.length > 0) {
-    return jsonError("ALREADY_MEMBER", "That user is already on this project.", 409);
+    return jsonError(
+      "ALREADY_MEMBER",
+      "That user is already on this project.",
+      409,
+    );
   }
 
   await db
@@ -87,8 +91,8 @@ export async function POST(request: Request, ctx: Ctx) {
       and(
         eq(projectInvitation.projectId, projectId),
         eq(projectInvitation.email, email),
-        isNull(projectInvitation.acceptedAt)
-      )
+        isNull(projectInvitation.acceptedAt),
+      ),
     );
 
   const id = nanoid();
@@ -121,6 +125,6 @@ export async function POST(request: Request, ctx: Ctx) {
       expiresAt: Math.floor(expiresAt.getTime() / 1000),
       acceptUrl: `${base}${acceptPath}`,
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

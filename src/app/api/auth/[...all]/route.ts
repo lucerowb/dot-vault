@@ -9,7 +9,7 @@ const handlers = toNextJsHandler(auth);
 
 async function withAuthRateLimit(
   request: Request,
-  handler: (req: Request) => Promise<Response>
+  handler: (req: Request) => Promise<Response>,
 ): Promise<Response> {
   const ip = getClientIp(request);
   const { success, remaining } = await limitAuth(ip);
@@ -20,7 +20,7 @@ async function withAuthRateLimit(
       429,
       remaining !== undefined
         ? { "X-RateLimit-Remaining": String(remaining) }
-        : undefined
+        : undefined,
     );
   }
   return handler(request);

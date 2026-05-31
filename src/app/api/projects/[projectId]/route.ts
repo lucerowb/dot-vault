@@ -55,7 +55,11 @@ export async function PATCH(request: Request, ctx: Ctx) {
   const { projectId } = await ctx.params;
   const myRole = await getProjectAccessRole(session.user.id, projectId);
   if (!myRole || !canAccess(myRole, "owner")) {
-    return jsonError("FORBIDDEN", "Only the project owner can edit settings.", 403);
+    return jsonError(
+      "FORBIDDEN",
+      "Only the project owner can edit settings.",
+      403,
+    );
   }
 
   const rows = await db
@@ -79,22 +83,18 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return jsonError(
       "VALIDATION_ERROR",
       parsed.error.issues.map((i) => i.message).join(" "),
-      400
+      400,
     );
   }
 
   const nextName = parsed.data.name?.trim() ?? row.name;
-  const nextSlug = parsed.data.slug
-    ? slugify(parsed.data.slug)
-    : row.slug;
+  const nextSlug = parsed.data.slug ? slugify(parsed.data.slug) : row.slug;
 
   if (nextSlug !== row.slug) {
     const taken = await db
       .select({ id: project.id })
       .from(project)
-      .where(
-        and(eq(project.userId, row.userId), eq(project.slug, nextSlug))
-      )
+      .where(and(eq(project.userId, row.userId), eq(project.slug, nextSlug)))
       .limit(1);
     const takenRow = taken[0];
     if (takenRow && takenRow.id !== projectId) {
@@ -130,7 +130,11 @@ export async function DELETE(request: Request, ctx: Ctx) {
   const { projectId } = await ctx.params;
   const myRole = await getProjectAccessRole(session.user.id, projectId);
   if (!myRole || !canAccess(myRole, "owner")) {
-    return jsonError("FORBIDDEN", "Only the project owner can delete the project.", 403);
+    return jsonError(
+      "FORBIDDEN",
+      "Only the project owner can delete the project.",
+      403,
+    );
   }
 
   await db.delete(project).where(eq(project.id, projectId));

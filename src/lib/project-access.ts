@@ -14,7 +14,7 @@ const rank: Record<ProjectAccessRole, number> = {
 
 export function canAccess(
   role: ProjectAccessRole | null,
-  need: "viewer" | "editor" | "owner"
+  need: "viewer" | "editor" | "owner",
 ): boolean {
   if (!role) return false;
   return rank[role] >= rank[need];
@@ -22,7 +22,7 @@ export function canAccess(
 
 export async function getProjectAccessRole(
   userId: string,
-  projectId: string
+  projectId: string,
 ): Promise<ProjectAccessRole | null> {
   const rows = await db
     .select({ ownerId: project.userId })
@@ -39,8 +39,8 @@ export async function getProjectAccessRole(
     .where(
       and(
         eq(projectMember.projectId, projectId),
-        eq(projectMember.userId, userId)
-      )
+        eq(projectMember.userId, userId),
+      ),
     )
     .limit(1);
   const role = m[0]?.role;
@@ -61,7 +61,9 @@ export type ListedProject = {
   myRole: ProjectAccessRole;
 };
 
-export async function listProjectsForUser(userId: string): Promise<ListedProject[]> {
+export async function listProjectsForUser(
+  userId: string,
+): Promise<ListedProject[]> {
   const owned = await db
     .select({
       id: project.id,

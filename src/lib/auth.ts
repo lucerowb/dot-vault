@@ -10,7 +10,10 @@ const baseURL =
   process.env.NEXT_PUBLIC_APP_URL ||
   "http://localhost:3000";
 
-if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET?.trim()) {
+if (
+  process.env.NODE_ENV === "production" &&
+  !process.env.BETTER_AUTH_SECRET?.trim()
+) {
   throw new Error("BETTER_AUTH_SECRET is required in production");
 }
 
@@ -19,7 +22,9 @@ const secret =
   "dev-only-change-better-auth-secret-never-use-in-real-prod-env";
 
 if (secret.length < 16) {
-  throw new Error("BETTER_AUTH_SECRET must be at least 16 characters when set.");
+  throw new Error(
+    "BETTER_AUTH_SECRET must be at least 16 characters when set.",
+  );
 }
 
 export const auth = betterAuth({
@@ -35,8 +40,7 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
   },
   plugins: [nextCookies()],
-  trustedOrigins: [
-    baseURL,
-    process.env.NEXT_PUBLIC_APP_URL,
-  ].filter((x): x is string => !!x?.trim()),
+  trustedOrigins: [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter(
+    (x): x is string => !!x?.trim(),
+  ),
 });

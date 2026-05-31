@@ -29,14 +29,13 @@ function applyClass(pref: ThemePreference) {
   return dark ? "dark" : "light";
 }
 
-function initialPreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
-  return readThemePreference();
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreferenceState] =
-    useState<ThemePreference>(initialPreference);
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => {
+    if (typeof window === "undefined") return "system";
+    const stored = readThemePreference();
+    applyClass(stored);
+    return stored;
+  });
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -59,7 +58,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({ preference, setPreference }),
-    [preference, setPreference]
+    [preference, setPreference],
   );
 
   return (

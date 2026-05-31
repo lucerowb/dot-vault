@@ -7,11 +7,22 @@ import { auth } from "@/lib/auth";
 import { db, project } from "@/lib/db";
 import { slugify } from "@/lib/project-slug";
 import { listProjectsForUser } from "@/lib/project-access";
+import { logAuditEvent } from "@/lib/audit";
 
 const CreateProjectBody = z.object({
   name: z.string().min(1).max(120),
   slug: z.string().min(1).max(64).optional(),
 });
+
+function getClientInfo(request: Request) {
+  return {
+    ipAddress:
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown",
+    userAgent: request.headers.get("user-agent") || "unknown",
+  };
+}
 
 export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -41,7 +52,7 @@ export async function POST(request: Request) {
     return jsonError(
       "VALIDATION_ERROR",
       parsed.error.issues.map((i) => i.message).join(" "),
-      400
+      400,
     );
   }
 
@@ -52,16 +63,14 @@ export async function POST(request: Request) {
   const taken = await db
     .select({ id: project.id })
     .from(project)
-    .where(
-      and(eq(project.userId, session.user.id), eq(project.slug, slug))
-    )
+    .where(and(eq(project.userId, session.user.id), eq(project.slug, slug)))
     .limit(1);
 
   if (taken.length > 0) {
     return jsonError(
       "SLUG_TAKEN",
       "You already have a project with this slug. Pick a different name.",
-      409
+      409,
     );
   }
 
@@ -74,8 +83,19 @@ export async function POST(request: Request) {
     updatedAt: now,
   });
 
+  // Log audit event
+  const clientInfo = getClientInfo(request);
+  await logAuditEvent({
+    userId: session.user.id,
+    action: "project_create",
+    resourceType: "project",
+    resourceId: id,
+    metadata: { name: parsed.data.name.trim(), slug },
+    ...clientInfo,
+  });
+
   return jsonSuccess(
     { id, name: parsed.data.name.trim(), slug, createdAt: now, updatedAt: now },
-    { status: 201 }
+    { status: 201 },
   );
 }

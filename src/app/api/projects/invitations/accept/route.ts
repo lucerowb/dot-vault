@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return jsonError(
       "VALIDATION_ERROR",
       parsed.error.issues.map((i) => i.message).join(" "),
-      400
+      400,
     );
   }
 
@@ -47,8 +47,8 @@ export async function POST(request: Request) {
       and(
         eq(projectInvitation.token, parsed.data.token),
         isNull(projectInvitation.acceptedAt),
-        gt(projectInvitation.expiresAt, now)
-      )
+        gt(projectInvitation.expiresAt, now),
+      ),
     )
     .limit(1);
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     return jsonError(
       "EMAIL_MISMATCH",
       "Sign in with the invited email address to accept.",
-      403
+      403,
     );
   }
 
@@ -71,8 +71,8 @@ export async function POST(request: Request) {
     .where(
       and(
         eq(projectMember.projectId, row.projectId),
-        eq(projectMember.userId, session.user.id)
-      )
+        eq(projectMember.userId, session.user.id),
+      ),
     )
     .limit(1);
 

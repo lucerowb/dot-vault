@@ -35,7 +35,7 @@ try {
   console.error(" ", msg);
   if (/28P01|password authentication failed/i.test(msg)) {
     console.error(
-      "  Hint: wrong DB password in DATABASE_URL, or special chars need URL-encoding."
+      "  Hint: wrong DB password in DATABASE_URL, or special chars need URL-encoding.",
     );
   }
   try {

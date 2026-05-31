@@ -22,8 +22,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
 export function base64ToBytes(value: string): Uint8Array {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const pad = normalized.length % 4;
-  const padded =
-    pad === 0 ? normalized : normalized + "=".repeat(4 - pad);
+  const padded = pad === 0 ? normalized : normalized + "=".repeat(4 - pad);
   const binary = atob(padded);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
@@ -41,17 +40,20 @@ export async function exportRawAesKey(key: CryptoKey): Promise<Uint8Array> {
 
 export async function importRawAesGcmKey(
   raw: Uint8Array,
-  extractable = true
+  extractable = true,
 ): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", copyToArrayBuffer(raw), AES_GCM, extractable, [
-    "encrypt",
-    "decrypt",
-  ]);
+  return crypto.subtle.importKey(
+    "raw",
+    copyToArrayBuffer(raw),
+    AES_GCM,
+    extractable,
+    ["encrypt", "decrypt"],
+  );
 }
 
 export async function encryptUtf8(
   plaintext: string,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
   const iv = new Uint8Array(12);
   crypto.getRandomValues(iv);
@@ -59,7 +61,7 @@ export async function encryptUtf8(
   const cipherBuf = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: copyToArrayBuffer(iv) },
     key,
-    data
+    data,
   );
   return { iv, ciphertext: new Uint8Array(cipherBuf) };
 }
@@ -67,19 +69,19 @@ export async function encryptUtf8(
 export async function decryptUtf8(
   iv: Uint8Array,
   ciphertext: Uint8Array,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<string> {
   const plainBuf = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: copyToArrayBuffer(iv) },
     key,
-    copyToArrayBuffer(ciphertext)
+    copyToArrayBuffer(ciphertext),
   );
   return new TextDecoder().decode(plainBuf);
 }
 
 export async function deriveWrappingKey(
   passphrase: string,
-  salt: Uint8Array
+  salt: Uint8Array,
 ): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -87,7 +89,7 @@ export async function deriveWrappingKey(
     enc.encode(passphrase),
     "PBKDF2",
     false,
-    ["deriveBits"]
+    ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
     {
@@ -97,33 +99,33 @@ export async function deriveWrappingKey(
       hash: "SHA-256",
     },
     keyMaterial,
-    256
+    256,
   );
   return crypto.subtle.importKey(
     "raw",
     copyToArrayBuffer(new Uint8Array(bits)),
     { name: "AES-KW", length: 256 },
     false,
-    ["wrapKey", "unwrapKey"]
+    ["wrapKey", "unwrapKey"],
   );
 }
 
 export async function wrapAesKey(
   dataKey: CryptoKey,
-  wrappingKey: CryptoKey
+  wrappingKey: CryptoKey,
 ): Promise<Uint8Array> {
   const wrapped = await crypto.subtle.wrapKey(
     "raw",
     dataKey,
     wrappingKey,
-    "AES-KW"
+    "AES-KW",
   );
   return new Uint8Array(wrapped);
 }
 
 export async function unwrapToAesGcmKey(
   wrapped: Uint8Array,
-  wrappingKey: CryptoKey
+  wrappingKey: CryptoKey,
 ): Promise<CryptoKey> {
   return crypto.subtle.unwrapKey(
     "raw",
@@ -132,7 +134,7 @@ export async function unwrapToAesGcmKey(
     "AES-KW",
     AES_GCM,
     true,
-    ["decrypt"]
+    ["decrypt"],
   );
 }
 
@@ -145,7 +147,7 @@ export function randomSalt(bytes = 16): Uint8Array {
 /** Build URL hash fragment for sharing (never sent to server). */
 export async function buildShareFragment(
   key: CryptoKey,
-  options?: { passphrase?: string }
+  options?: { passphrase?: string },
 ): Promise<string> {
   if (!options?.passphrase) {
     const raw = await exportRawAesKey(key);
@@ -159,7 +161,7 @@ export async function buildShareFragment(
 
 export async function importKeyFromFragment(
   fragment: ParsedFragment,
-  passphrase?: string
+  passphrase?: string,
 ): Promise<CryptoKey> {
   if (fragment.version === 1) {
     return importRawAesGcmKey(fragment.keyMaterial);

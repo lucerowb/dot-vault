@@ -24,8 +24,8 @@ export async function GET(request: Request) {
       and(
         eq(projectInvitation.token, token),
         isNull(projectInvitation.acceptedAt),
-        gt(projectInvitation.expiresAt, now)
-      )
+        gt(projectInvitation.expiresAt, now),
+      ),
     )
     .limit(1);
 

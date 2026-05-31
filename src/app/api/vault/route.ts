@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         429,
         remaining !== undefined
           ? { "X-RateLimit-Remaining": String(remaining) }
-          : undefined
+          : undefined,
       );
     }
 
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return jsonVaultError(
         "PAYLOAD_TOO_LARGE",
         "Request body exceeds 2 MB.",
-        413
+        413,
       );
     }
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       return jsonVaultError(
         "VALIDATION_ERROR",
         parsed.error.issues.map((i) => i.message).join(" "),
-        400
+        400,
       );
     }
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         expiresAt: createdAt + parsed.data.ttl,
         deleteToken,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       return jsonVaultError(
         "SERVICE_UNAVAILABLE",
         "Vault storage is not configured. Set Upstash Redis environment variables.",
-        503
+        503,
       );
     }
     console.error(err);

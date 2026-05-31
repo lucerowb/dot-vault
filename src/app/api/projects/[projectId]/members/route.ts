@@ -3,10 +3,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { jsonError, jsonSuccess } from "@/lib/api-response";
 import { auth } from "@/lib/auth";
 import { db, project, projectInvitation, projectMember, user } from "@/lib/db";
-import {
-  canAccess,
-  getProjectAccessRole,
-} from "@/lib/project-access";
+import { canAccess, getProjectAccessRole } from "@/lib/project-access";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -89,8 +86,8 @@ export async function GET(request: Request, ctx: Ctx) {
         and(
           eq(projectInvitation.projectId, projectId),
           isNull(projectInvitation.acceptedAt),
-          gt(projectInvitation.expiresAt, now)
-        )
+          gt(projectInvitation.expiresAt, now),
+        ),
       );
   }
 

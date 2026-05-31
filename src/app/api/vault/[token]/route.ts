@@ -35,7 +35,7 @@ export async function GET(request: Request, context: RouteContext) {
         429,
         remaining !== undefined
           ? { "X-RateLimit-Remaining": String(remaining) }
-          : undefined
+          : undefined,
       );
     }
 
@@ -49,7 +49,7 @@ export async function GET(request: Request, context: RouteContext) {
       return jsonVaultError(
         "GONE",
         "This one-time vault was already retrieved.",
-        410
+        410,
       );
     }
 
@@ -65,7 +65,7 @@ export async function GET(request: Request, context: RouteContext) {
       },
       remaining !== undefined
         ? { headers: { "X-RateLimit-Remaining": String(remaining) } }
-        : undefined
+        : undefined,
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
@@ -73,7 +73,7 @@ export async function GET(request: Request, context: RouteContext) {
       return jsonVaultError(
         "SERVICE_UNAVAILABLE",
         "Vault storage is not configured.",
-        503
+        503,
       );
     }
     console.error(err);
@@ -94,7 +94,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       return jsonVaultError(
         "DELETE_TOKEN_REQUIRED",
         "Missing X-Delete-Token header.",
-        401
+        401,
       );
     }
 
@@ -116,7 +116,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       return jsonVaultError(
         "SERVICE_UNAVAILABLE",
         "Vault storage is not configured.",
-        503
+        503,
       );
     }
     console.error(err);

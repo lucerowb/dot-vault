@@ -15,7 +15,11 @@ export async function DELETE(request: Request, ctx: Ctx) {
   const { projectId, memberUserId } = await ctx.params;
   const myRole = await getProjectAccessRole(session.user.id, projectId);
   if (!myRole || !canAccess(myRole, "owner")) {
-    return jsonError("FORBIDDEN", "Only the project owner can remove members.", 403);
+    return jsonError(
+      "FORBIDDEN",
+      "Only the project owner can remove members.",
+      403,
+    );
   }
 
   const proj = await db
@@ -32,8 +36,8 @@ export async function DELETE(request: Request, ctx: Ctx) {
     .where(
       and(
         eq(projectMember.projectId, projectId),
-        eq(projectMember.userId, memberUserId)
-      )
+        eq(projectMember.userId, memberUserId),
+      ),
     )
     .returning({ id: projectMember.id });
 

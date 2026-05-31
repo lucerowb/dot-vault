@@ -2,71 +2,35 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
-type ProjectRow = {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: string;
-  updatedAt: string;
-  myRole: "owner" | "editor" | "viewer";
-};
+import { getErrorMessage } from "@/lib/api-client";
+import { useCreateProject, useProjects } from "@/hooks/use-projects";
 
 const field =
   "min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<ProjectRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { data: projects, isPending, error: queryError } = useProjects();
+  const createProject = useCreateProject();
+  const error =
+    queryError != null
+      ? getErrorMessage(queryError, "Could not load projects.")
+      : createProject.error != null
+        ? getErrorMessage(createProject.error, "Could not create project.")
+        : null;
 
-  const load = useCallback(async () => {
-    setError(null);
-    const res = await fetch("/api/projects", { cache: "no-store" });
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: ProjectRow[];
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success || !json.data) {
-      setError(json.error?.message ?? "Could not load projects.");
-      setProjects([]);
-      return;
-    }
-    setProjects(json.data);
-  }, []);
-
-  useEffect(() => {
-    queueMicrotask(() => void load());
-  }, [load]);
-
-  async function createProject(e: React.FormEvent) {
+  async function createProjectSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    setBusy(true);
-    setError(null);
     try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: { id: string };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success || !json.data) {
-        setError(json.error?.message ?? "Could not create project.");
-        return;
-      }
+      const result = await createProject.mutateAsync(name);
       setName("");
-      router.push(`/dashboard/projects/${json.data.id}`);
-    } finally {
-      setBusy(false);
+      router.push(`/dashboard/projects/${result.id}`);
+    } catch {
+      // error surfaced via createProject.error
     }
   }
 
@@ -81,7 +45,7 @@ export default function DashboardPage() {
       </p>
 
       <form
-        onSubmit={(e) => void createProject(e)}
+        onSubmit={(e) => void createProjectSubmit(e)}
         className="mt-8 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90 sm:flex-row"
       >
         <input
@@ -92,7 +56,7 @@ export default function DashboardPage() {
         />
         <button
           type="submit"
-          disabled={busy}
+          disabled={createProject.isPending}
           className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           New project
@@ -106,9 +70,9 @@ export default function DashboardPage() {
       ) : null}
 
       <ul className="mt-10 space-y-3">
-        {projects === null ? (
+        {isPending ? (
           <li className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</li>
-        ) : projects.length === 0 ? (
+        ) : !projects?.length ? (
           <li className="text-sm text-zinc-500 dark:text-zinc-400">
             No projects yet.
           </li>

@@ -15,6 +15,20 @@
       "when": 1778852755842,
       "tag": "0001_project_collab",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780146816160,
+      "tag": "0002_free_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780197506567,
+      "tag": "0003_rainy_serpent_society",
+      "breakpoints": true
     }
   ]
 }

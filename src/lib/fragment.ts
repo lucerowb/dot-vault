@@ -8,7 +8,10 @@ export function buildFragmentV1(keyMaterial: Uint8Array): string {
   return `${PREFIX_V1}${bytesToBase64Url(keyMaterial)}`;
 }
 
-export function buildFragmentV2(salt: Uint8Array, wrappedKey: Uint8Array): string {
+export function buildFragmentV2(
+  salt: Uint8Array,
+  wrappedKey: Uint8Array,
+): string {
   return `${PREFIX_V2}${bytesToBase64Url(salt)}.${bytesToBase64Url(wrappedKey)}`;
 }
 

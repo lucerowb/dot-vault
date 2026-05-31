@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.5",
   "private": false,
+  "workspaces": [
+    "packages/*"
+  ],
   "description": "Ephemeral quick-share plus authenticated cloud vault for .env — Better Auth, Supabase Postgres, Upstash Redis, Web Crypto.",
   "license": "MIT",
   "author": "Srijan Bajracharya <srijan.bajracharya97@gmail.com>",
@@ -39,6 +42,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.11",
+    "@tanstack/react-query": "^5.90.5",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "better-auth": "^1.6.11",
@@ -46,6 +50,7 @@
     "framer-motion": "^12.38.0",
     "nanoid": "^5.1.11",
     "next": "16.2.6",
+    "otpauth": "^9.5.1",
     "postgres": "^3.4.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",

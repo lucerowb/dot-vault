@@ -6,6 +6,7 @@ import { decryptBlob, encryptBlob } from "@/lib/at-rest-crypto";
 import { auth } from "@/lib/auth";
 import { db, projectEnv } from "@/lib/db";
 import { canAccess, getProjectAccessRole } from "@/lib/project-access";
+import { logAuditEvent, createEnvVersion } from "@/lib/audit";
 
 const MAX_ENV_BYTES = 512_000;
 
@@ -15,6 +16,16 @@ const PatchBody = z.object({
 });
 
 type Ctx = { params: Promise<{ projectId: string; envId: string }> };
+
+function getClientInfo(request: Request) {
+  return {
+    ipAddress:
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown",
+    userAgent: request.headers.get("user-agent") || "unknown",
+  };
+}
 
 export async function GET(request: Request, ctx: Ctx) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -30,9 +41,7 @@ export async function GET(request: Request, ctx: Ctx) {
   const rows = await db
     .select()
     .from(projectEnv)
-    .where(
-      and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId))
-    )
+    .where(and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId)))
     .limit(1);
   const row = rows[0];
   if (!row) {
@@ -41,6 +50,18 @@ export async function GET(request: Request, ctx: Ctx) {
 
   try {
     const content = decryptBlob(row.iv, row.ciphertext);
+
+    // Log view event (async, don't wait)
+    const clientInfo = getClientInfo(request);
+    logAuditEvent({
+      userId: session.user.id,
+      action: "env_view",
+      resourceType: "env",
+      resourceId: envId,
+      metadata: { projectId, label: row.label },
+      ...clientInfo,
+    }).catch(console.error);
+
     return jsonSuccess({
       id: row.id,
       label: row.label,
@@ -65,16 +86,14 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return jsonError(
       "FORBIDDEN",
       "You need editor access to change env files.",
-      403
+      403,
     );
   }
 
   const rows = await db
     .select()
     .from(projectEnv)
-    .where(
-      and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId))
-    )
+    .where(and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId)))
     .limit(1);
   const row = rows[0];
   if (!row) {
@@ -92,7 +111,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return jsonError(
       "VALIDATION_ERROR",
       parsed.error.issues.map((i) => i.message).join(" "),
-      400
+      400,
     );
   }
 
@@ -100,6 +119,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   let nextLabel = row.label;
   let nextIv = row.iv;
   let nextCipher = row.ciphertext;
+  const clientInfo = getClientInfo(request);
 
   try {
     if (parsed.data.content !== undefined) {
@@ -118,8 +138,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
         .where(
           and(
             eq(projectEnv.projectId, projectId),
-            eq(projectEnv.label, nextLabel)
-          )
+            eq(projectEnv.label, nextLabel),
+          ),
         )
         .limit(1);
       const dupRow = dup[0];
@@ -127,10 +147,25 @@ export async function PATCH(request: Request, ctx: Ctx) {
         return jsonError(
           "DUPLICATE_LABEL",
           "That label is already used in this project.",
-          409
+          409,
         );
       }
     }
+
+    // Create version before updating
+    await createEnvVersion({
+      projectEnvId: envId,
+      projectId,
+      label: row.label,
+      iv: row.iv,
+      ciphertext: row.ciphertext,
+      changeType: "updated",
+      changedByUserId: session.user.id,
+      comment:
+        parsed.data.label !== row.label
+          ? `Renamed from "${row.label}" to "${nextLabel}"`
+          : undefined,
+    });
 
     await db
       .update(projectEnv)
@@ -141,6 +176,21 @@ export async function PATCH(request: Request, ctx: Ctx) {
         updatedAt: now,
       })
       .where(eq(projectEnv.id, envId));
+
+    // Log audit event
+    await logAuditEvent({
+      userId: session.user.id,
+      action: "env_update",
+      resourceType: "env",
+      resourceId: envId,
+      metadata: {
+        projectId,
+        oldLabel: row.label,
+        newLabel: nextLabel,
+        contentChanged: parsed.data.content !== undefined,
+      },
+      ...clientInfo,
+    });
 
     return jsonSuccess({
       id: row.id,
@@ -165,16 +215,49 @@ export async function DELETE(request: Request, ctx: Ctx) {
     return jsonError(
       "FORBIDDEN",
       "You need editor access to delete env files.",
-      403
+      403,
     );
   }
 
+  // Get the env before deleting for version history
+  const rows = await db
+    .select()
+    .from(projectEnv)
+    .where(and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId)))
+    .limit(1);
+  const row = rows[0];
+
+  if (!row) {
+    return jsonError("NOT_FOUND", "Env not found.", 404);
+  }
+
+  const clientInfo = getClientInfo(request);
+
+  // Create version before deleting
+  await createEnvVersion({
+    projectEnvId: envId,
+    projectId,
+    label: row.label,
+    iv: row.iv,
+    ciphertext: row.ciphertext,
+    changeType: "deleted",
+    changedByUserId: session.user.id,
+  });
+
   const deleted = await db
     .delete(projectEnv)
-    .where(
-      and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId))
-    )
+    .where(and(eq(projectEnv.id, envId), eq(projectEnv.projectId, projectId)))
     .returning({ id: projectEnv.id });
+
+  // Log audit event
+  await logAuditEvent({
+    userId: session.user.id,
+    action: "env_delete",
+    resourceType: "env",
+    resourceId: envId,
+    metadata: { projectId, label: row.label },
+    ...clientInfo,
+  });
 
   if (deleted.length === 0) {
     return jsonError("NOT_FOUND", "Env not found.", 404);

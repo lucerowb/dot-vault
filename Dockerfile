@@ -17,8 +17,16 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Inlined into the client bundle at build time; set in Coolify build args if needed.
-ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_APP_URL=https://localhost:3000
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+# Placeholders for `next build` only (route data collection imports auth). Runtime env
+# comes from Coolify — do not rely on these values in production.
+ARG BETTER_AUTH_SECRET=build-time-placeholder-min-32-chars-long
+ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+ENV BETTER_AUTH_URL=${NEXT_PUBLIC_APP_URL}
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
+# openssl rand -base64 32 (valid 32-byte key for build phase only)
+ENV STORAGE_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 RUN pnpm run build
 
 FROM base AS runner

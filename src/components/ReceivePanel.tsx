@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 import {
   base64ToBytes,
@@ -20,9 +20,29 @@ type Phase =
 
 type Props = { token: string };
 
+function initialPhaseFromHash(): Phase {
+  if (typeof window === "undefined") {
+    return { kind: "loading" };
+  }
+  const hash = window.location.hash.replace(/^#/, "");
+  const parsed = parseFragment(hash);
+  if (!parsed) {
+    return {
+      kind: "error",
+      message:
+        "Missing decryption key in the URL fragment. Open the full link you were sent, including everything after #.",
+    };
+  }
+  if (parsed.version === 2) {
+    return { kind: "need_passphrase", fragment: parsed };
+  }
+  return { kind: "loading" };
+}
+
 export function ReceivePanel({ token }: Props) {
-  const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  const [phase, setPhase] = useState<Phase>(initialPhaseFromHash);
   const [pass, setPass] = useState("");
+  const autoDecryptStarted = useRef(false);
 
   const runDecrypt = useCallback(
     async (fragment: ParsedFragment, passphrase?: string) => {
@@ -42,8 +62,7 @@ export function ReceivePanel({ token }: Props) {
           setPhase({
             kind: "error",
             message:
-              json.error?.message ??
-              "This one-time link was already opened.",
+              json.error?.message ?? "This one-time link was already opened.",
           });
           return;
         }
@@ -63,33 +82,27 @@ export function ReceivePanel({ token }: Props) {
       } catch {
         setPhase({
           kind: "error",
-          message:
-            "Could not decrypt. Wrong passphrase or corrupted payload.",
+          message: "Could not decrypt. Wrong passphrase or corrupted payload.",
         });
       }
     },
-    [token]
+    [token],
   );
 
   useEffect(() => {
+    if (phase.kind !== "loading" || autoDecryptStarted.current) {
+      return;
+    }
+    const hash = window.location.hash.replace(/^#/, "");
+    const parsed = parseFragment(hash);
+    if (!parsed || parsed.version === 2) {
+      return;
+    }
+    autoDecryptStarted.current = true;
     queueMicrotask(() => {
-      const hash = window.location.hash.replace(/^#/, "");
-      const parsed = parseFragment(hash);
-      if (!parsed) {
-        setPhase({
-          kind: "error",
-          message:
-            "Missing decryption key in the URL fragment. Open the full link you were sent, including everything after #.",
-        });
-        return;
-      }
-      if (parsed.version === 2) {
-        setPhase({ kind: "need_passphrase", fragment: parsed });
-        return;
-      }
       void runDecrypt(parsed);
     });
-  }, [runDecrypt, token]);
+  }, [phase.kind, runDecrypt]);
 
   async function onSubmitPassphrase(e: React.FormEvent) {
     e.preventDefault();

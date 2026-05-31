@@ -10,8 +10,7 @@ export function bytesToBase64Url(bytes: Uint8Array): string {
 export function base64UrlToBytes(value: string): Uint8Array {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const pad = normalized.length % 4;
-  const padded =
-    pad === 0 ? normalized : normalized + "=".repeat(4 - pad);
+  const padded = pad === 0 ? normalized : normalized + "=".repeat(4 - pad);
   const binary = atob(padded);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);

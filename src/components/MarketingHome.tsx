@@ -30,7 +30,12 @@ export function MarketingHome() {
 
         <motion.span
           {...fadeUp}
-          transition={{ type: "spring", stiffness: 300, damping: 32, delay: 0.04 }}
+          transition={{
+            type: "spring",
+            stiffness: 300,
+            damping: 32,
+            delay: 0.04,
+          }}
           className="mb-6 inline-flex rounded-full border border-zinc-200/80 bg-white/70 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-zinc-600 shadow-sm backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-900/70 dark:text-zinc-400"
         >
           Zero-knowledge · Ephemeral · Cloud optional
@@ -46,23 +51,34 @@ export function MarketingHome() {
           }}
           className="max-w-4xl text-balance text-4xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 md:text-6xl md:leading-[1.08]"
         >
-          Share secrets like <span className="text-blue-600 dark:text-blue-400">.env</span>{" "}
-          files without handing plaintext to infra.
+          Share secrets like{" "}
+          <span className="text-blue-600 dark:text-blue-400">.env</span> files
+          without handing plaintext to infra.
         </motion.h1>
 
         <motion.p
           {...fadeUp}
-          transition={{ type: "spring", stiffness: 280, damping: 30, delay: 0.1 }}
+          transition={{
+            type: "spring",
+            stiffness: 280,
+            damping: 30,
+            delay: 0.1,
+          }}
           className="mt-6 max-w-2xl text-balance text-lg leading-relaxed text-zinc-600 dark:text-zinc-400 md:text-xl"
         >
-          DotVault encrypts in the browser, stores ciphertext in the cloud,
-          and keeps decryption keys out of HTTP — so accidental logs and
-          server compromise never see your variables.
+          DotVault encrypts in the browser, stores ciphertext in the cloud, and
+          keeps decryption keys out of HTTP — so accidental logs and server
+          compromise never see your variables.
         </motion.p>
 
         <motion.div
           {...fadeUp}
-          transition={{ type: "spring", stiffness: 260, damping: 28, delay: 0.14 }}
+          transition={{
+            type: "spring",
+            stiffness: 260,
+            damping: 28,
+            delay: 0.14,
+          }}
           className="mt-10 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center"
         >
           <Link
@@ -91,7 +107,8 @@ export function MarketingHome() {
           transition={{ delay: 0.35, duration: 0.6 }}
           className="mt-14 text-xs text-zinc-500 dark:text-zinc-500"
         >
-          Open source · Built with Better Auth · Supabase · Web Crypto · Upstash Redis
+          Open source · Built with Better Auth · Supabase · Web Crypto · Upstash
+          Redis
         </motion.p>
       </section>
 
@@ -146,7 +163,8 @@ export function MarketingHome() {
             Ready when your team needs a sane handoff.
           </motion.h2>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-            Engineers use DotVault instead of Slack search history and pasted secrets in docs.
+            Engineers use DotVault instead of Slack search history and pasted
+            secrets in docs.
           </p>
           <motion.div
             initial={{ opacity: 0 }}

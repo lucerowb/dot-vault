@@ -8,8 +8,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Optional: same as your public app URL so client code sees the right origin.
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+        # Must match your public URL (Coolify domain) — baked into the client bundle.
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://localhost:3000}
     ports:
       - "3000:3000"
     environment:

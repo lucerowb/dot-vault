@@ -6,12 +6,14 @@ function getMasterKey(): Buffer {
   const raw = process.env.STORAGE_ENCRYPTION_KEY;
   if (!raw || raw.trim().length < 32) {
     throw new Error(
-      "STORAGE_ENCRYPTION_KEY must be set to a Base64-encoded 32-byte key (openssl rand -base64 32)"
+      "STORAGE_ENCRYPTION_KEY must be set to a Base64-encoded 32-byte key (openssl rand -base64 32)",
     );
   }
   const key = Buffer.from(raw, "base64");
   if (key.length !== 32) {
-    throw new Error("STORAGE_ENCRYPTION_KEY Base64 payload must decode to 32 bytes");
+    throw new Error(
+      "STORAGE_ENCRYPTION_KEY Base64 payload must decode to 32 bytes",
+    );
   }
   return key;
 }
@@ -34,7 +36,10 @@ export function encryptBlob(plaintext: string): {
   };
 }
 
-export function decryptBlob(ivB64: string, ciphertextWithTagB64: string): string {
+export function decryptBlob(
+  ivB64: string,
+  ciphertextWithTagB64: string,
+): string {
   const key = getMasterKey();
   const iv = Buffer.from(ivB64, "base64");
   const combined = Buffer.from(ciphertextWithTagB64, "base64");

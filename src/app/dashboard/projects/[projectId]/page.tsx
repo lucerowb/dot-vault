@@ -2,57 +2,56 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { ShareStoredEnvModal } from "@/components/ShareStoredEnvModal";
-
-type EnvMeta = {
-  id: string;
-  label: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type MyRole = "owner" | "editor" | "viewer";
-
-type Project = {
-  id: string;
-  name: string;
-  slug: string;
-  myRole?: MyRole;
-};
-
-type TeamMember = {
-  userId: string;
-  email: string;
-  name: string;
-  role: MyRole;
-};
-
-type InvitationRow = {
-  id: string;
-  email: string;
-  role: string;
-  expiresAt: string;
-  createdAt: string;
-};
+import { VersionHistory } from "@/components/VersionHistory";
+import { AuditLog } from "@/components/AuditLog";
+import { GitHubIntegration } from "@/components/GitHubIntegration";
+import { apiGet, getErrorMessage } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  useDeleteEnv,
+  useDeleteProject,
+  useProject,
+  useProjectEnvs,
+  useProjectTeam,
+  useRemoveMember,
+  useRevokeInvite,
+  useSendInvite,
+  useUploadEnv,
+} from "@/hooks/use-projects";
+import type {
+  EnvContent,
+  EnvMeta,
+  ProjectRole,
+  TeamMember,
+  InvitationRow,
+} from "@/types/project.types";
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
   const router = useRouter();
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [envs, setEnvs] = useState<EnvMeta[] | null>(null);
-  const [team, setTeam] = useState<{
-    myRole: MyRole;
-    members: TeamMember[];
-    invitations: InvitationRow[];
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const projectQuery = useProject(projectId);
+  const envsQuery = useProjectEnvs(projectId);
+  const teamQuery = useProjectTeam(projectId);
+  const uploadEnv = useUploadEnv(projectId);
+  const deleteEnvMutation = useDeleteEnv(projectId);
+  const deleteProjectMutation = useDeleteProject(projectId);
+  const inviteMutation = useSendInvite(projectId);
+  const revokeInviteMutation = useRevokeInvite(projectId);
+  const removeMemberMutation = useRemoveMember(projectId);
+
+  const project = projectQuery.data ?? null;
+  const envs = envsQuery.data;
+  const team = teamQuery.data ?? null;
+  const [actionError, setActionError] = useState<string | null>(null);
   const [label, setLabel] = useState("default");
   const [content, setContent] = useState("");
-  const [busy, setBusy] = useState(false);
   const [viewing, setViewing] = useState<{
     label: string;
     content: string;
@@ -61,141 +60,72 @@ export default function ProjectDetailPage() {
     id: string;
     label: string;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState<
+    "envs" | "versions" | "audit" | "github"
+  >("envs");
+  const [selectedEnvForVersions, setSelectedEnvForVersions] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
-  const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteFlash, setInviteFlash] = useState<string | null>(null);
 
-  const myRole = project?.myRole ?? team?.myRole;
+  const myRole: ProjectRole | undefined = project?.myRole ?? team?.myRole;
   const canEditEnvs = myRole === "owner" || myRole === "editor";
   const isOwner = myRole === "owner";
 
-  const loadProject = useCallback(async () => {
-    const res = await fetch(`/api/projects/${projectId}`, {
-      cache: "no-store",
-    });
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: Project;
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success || !json.data) {
-      setError(json.error?.message ?? "Project not found.");
-      setProject(null);
-      return;
-    }
-    setProject(json.data);
-    setError(null);
-  }, [projectId]);
-
-  const loadEnvs = useCallback(async () => {
-    const res = await fetch(`/api/projects/${projectId}/envs`, {
-      cache: "no-store",
-    });
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: EnvMeta[];
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success || !json.data) {
-      setEnvs([]);
-      return;
-    }
-    setEnvs(json.data);
-  }, [projectId]);
-
-  const loadTeam = useCallback(async () => {
-    const res = await fetch(`/api/projects/${projectId}/members`, {
-      cache: "no-store",
-    });
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: {
-        myRole: MyRole;
-        members: TeamMember[];
-        invitations: InvitationRow[];
-      };
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success || !json.data) {
-      setTeam(null);
-      return;
-    }
-    setTeam(json.data);
-  }, [projectId]);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      void loadProject();
-      void loadEnvs();
-      void loadTeam();
-    });
-  }, [loadProject, loadEnvs, loadTeam]);
+  const loadError =
+    projectQuery.error != null
+      ? getErrorMessage(projectQuery.error, "Project not found.")
+      : null;
+  const error = actionError ?? loadError;
 
   async function upload(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
+    setActionError(null);
     try {
-      const res = await fetch(`/api/projects/${projectId}/envs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim(), content }),
-      });
-      const json = (await res.json()) as {
-        success?: boolean;
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success) {
-        setError(json.error?.message ?? "Upload failed.");
-        return;
-      }
+      await uploadEnv.mutateAsync({ label: label.trim(), content });
       setContent("");
-      void loadEnvs();
-    } finally {
-      setBusy(false);
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Upload failed."));
     }
   }
 
   async function deleteEnv(id: string) {
     if (!confirm("Delete this env blob?")) return;
-    const res = await fetch(`/api/projects/${projectId}/envs/${id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok && res.status !== 204) {
-      setError("Could not delete.");
-      return;
+    setActionError(null);
+    try {
+      await deleteEnvMutation.mutateAsync(id);
+    } catch {
+      setActionError("Could not delete.");
     }
-    void loadEnvs();
   }
 
   async function openEnv(id: string, labelName: string) {
-    const res = await fetch(`/api/projects/${projectId}/envs/${id}`, {
-      cache: "no-store",
-    });
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: { content: string };
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success || !json.data) {
-      setError(json.error?.message ?? "Could not load env.");
-      return;
+    setActionError(null);
+    try {
+      const data = await queryClient.fetchQuery({
+        queryKey: queryKeys.projects.env(projectId, id),
+        queryFn: () =>
+          apiGet<EnvContent>(`/api/projects/${projectId}/envs/${id}`),
+      });
+      setViewing({ label: labelName, content: data.content });
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Could not load env."));
     }
-    setViewing({ label: labelName, content: json.data.content });
   }
 
   async function deleteProject() {
     if (!confirm("Delete this project and all env files?")) return;
-    const res = await fetch(`/api/projects/${projectId}`, {
-      method: "DELETE",
-    });
-    if (!res.ok && res.status !== 204) {
-      setError("Could not delete project.");
-      return;
+    setActionError(null);
+    try {
+      await deleteProjectMutation.mutateAsync();
+      router.push("/dashboard");
+    } catch {
+      setActionError("Could not delete project.");
     }
-    router.push("/dashboard");
   }
 
   async function copyViewing() {
@@ -206,70 +136,55 @@ export default function ProjectDetailPage() {
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault();
     setInviteFlash(null);
-    setInviteBusy(true);
+    setActionError(null);
     try {
-      const res = await fetch(
-        `/api/projects/${projectId}/invitations`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: inviteEmail.trim(),
-            role: inviteRole,
-          }),
-        }
-      );
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: { acceptUrl?: string };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success) {
-        setError(json.error?.message ?? "Invite failed.");
-        return;
-      }
+      const result = await inviteMutation.mutateAsync({
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
       setInviteEmail("");
-      if (json.data?.acceptUrl) {
-        await navigator.clipboard.writeText(json.data.acceptUrl);
+      if (result.acceptUrl) {
+        await navigator.clipboard.writeText(result.acceptUrl);
         setInviteFlash("Invite created. Accept link copied to clipboard.");
       } else {
         setInviteFlash("Invite created.");
       }
-      void loadTeam();
-    } finally {
-      setInviteBusy(false);
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Invite failed."));
     }
   }
 
-  async function revokeInvite(id: string) {
-    const res = await fetch(
-      `/api/projects/${projectId}/invitations/${encodeURIComponent(id)}`,
-      { method: "DELETE" }
-    );
-    if (!res.ok) {
-      setError("Could not revoke invite.");
-      return;
+  async function revokeInviteHandler(id: string) {
+    setActionError(null);
+    try {
+      await revokeInviteMutation.mutateAsync(id);
+    } catch {
+      setActionError("Could not revoke invite.");
     }
-    void loadTeam();
   }
 
-  async function removeMember(userId: string) {
+  async function removeMemberHandler(userId: string) {
     if (!confirm("Remove this collaborator?")) return;
-    const res = await fetch(
-      `/api/projects/${projectId}/members/${encodeURIComponent(userId)}`,
-      { method: "DELETE" }
-    );
-    if (!res.ok && res.status !== 204) {
-      setError("Could not remove member.");
-      return;
+    setActionError(null);
+    try {
+      await removeMemberMutation.mutateAsync(userId);
+    } catch {
+      setActionError("Could not remove member.");
     }
-    void loadTeam();
   }
 
-  if (error && !project) {
+  if (projectQuery.isPending && !project) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-12">
-        <p className="text-red-700 dark:text-red-400">{error}</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
+      </div>
+    );
+  }
+
+  if (loadError && !project) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        <p className="text-red-700 dark:text-red-400">{loadError}</p>
         <Link href="/dashboard" className="mt-4 inline-block text-blue-700">
           ← Back
         </Link>
@@ -297,7 +212,9 @@ export default function ProjectDetailPage() {
               </span>
             ) : null}
           </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{project?.slug}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {project?.slug}
+          </p>
         </div>
         {isOwner ? (
           <button
@@ -316,7 +233,9 @@ export default function ProjectDetailPage() {
 
       {team ? (
         <section className="mt-10 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Team</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            Team
+          </h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Owner can invite by email. Invited users sign in with that email and
             open the accept link.
@@ -328,7 +247,9 @@ export default function ProjectDetailPage() {
               className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
             >
               <div className="min-w-[200px] flex-1">
-                <label className="text-xs text-zinc-500 dark:text-zinc-400">Email</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Email
+                </label>
                 <input
                   type="email"
                   required
@@ -339,7 +260,9 @@ export default function ProjectDetailPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400">Role</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Role
+                </label>
                 <select
                   value={inviteRole}
                   onChange={(e) =>
@@ -353,10 +276,10 @@ export default function ProjectDetailPage() {
               </div>
               <button
                 type="submit"
-                disabled={inviteBusy}
+                disabled={inviteMutation.isPending}
                 className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
               >
-                {inviteBusy ? "Sending…" : "Invite"}
+                {inviteMutation.isPending ? "Sending…" : "Invite"}
               </button>
             </form>
           ) : null}
@@ -369,7 +292,7 @@ export default function ProjectDetailPage() {
             Members
           </h3>
           <ul className="mt-2 space-y-2">
-            {team.members.map((m) => (
+            {team.members.map((m: TeamMember) => (
               <li
                 key={m.userId}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-800/80 px-3 py-2 text-sm"
@@ -379,7 +302,9 @@ export default function ProjectDetailPage() {
                     {m.name || m.email || m.userId}
                   </span>
                   {m.email ? (
-                    <span className="ml-2 text-zinc-500 dark:text-zinc-400">{m.email}</span>
+                    <span className="ml-2 text-zinc-500 dark:text-zinc-400">
+                      {m.email}
+                    </span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
@@ -390,7 +315,7 @@ export default function ProjectDetailPage() {
                     <button
                       type="button"
                       className="text-xs text-red-700 dark:text-red-400 hover:underline"
-                      onClick={() => void removeMember(m.userId)}
+                      onClick={() => void removeMemberHandler(m.userId)}
                     >
                       Remove
                     </button>
@@ -406,12 +331,14 @@ export default function ProjectDetailPage() {
                 Pending invites
               </h3>
               <ul className="mt-2 space-y-2">
-                {team.invitations.map((inv) => (
+                {team.invitations.map((inv: InvitationRow) => (
                   <li
                     key={inv.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-sm"
                   >
-                    <span className="text-zinc-800 dark:text-zinc-200">{inv.email}</span>
+                    <span className="text-zinc-800 dark:text-zinc-200">
+                      {inv.email}
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
                         {inv.role}
@@ -419,7 +346,7 @@ export default function ProjectDetailPage() {
                       <button
                         type="button"
                         className="text-xs text-red-700 dark:text-red-400 hover:underline"
-                        onClick={() => void revokeInvite(inv.id)}
+                        onClick={() => void revokeInviteHandler(inv.id)}
                       >
                         Revoke
                       </button>
@@ -431,100 +358,6 @@ export default function ProjectDetailPage() {
           ) : null}
         </section>
       ) : null}
-
-      {canEditEnvs ? (
-        <section className="mt-10 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Upload / replace</h2>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Labels are unique per project. Use labels like <code>staging</code>,{" "}
-            <code>prod</code>.
-          </p>
-          <form
-            onSubmit={(e) => void upload(e)}
-            className="mt-4 grid gap-3 sm:grid-cols-2"
-          >
-            <div className="sm:col-span-1">
-              <label className="text-xs text-zinc-500 dark:text-zinc-400">Label</label>
-              <input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-xs text-zinc-500 dark:text-zinc-400">Content</label>
-              <textarea
-                rows={8}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={"API_KEY=...\nDATABASE_URL=..."}
-                className="mt-1 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {busy ? "Saving…" : "Save env"}
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : myRole === "viewer" ? (
-        <p className="mt-10 rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/80 px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-          You have <strong>viewer</strong> access: you can open stored envs and
-          create quick-share links, but not upload or delete blobs.
-        </p>
-      ) : null}
-
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Stored envs</h2>
-        <ul className="mt-3 space-y-2">
-          {envs === null ? (
-            <li className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</li>
-          ) : envs.length === 0 ? (
-            <li className="text-sm text-zinc-500 dark:text-zinc-400">None yet.</li>
-          ) : (
-            envs.map((env) => (
-              <li
-                key={env.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 px-3 py-2"
-              >
-                <span className="font-medium text-zinc-900 dark:text-zinc-50">{env.label}</span>
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  <button
-                    type="button"
-                    className="text-sm text-blue-700 hover:underline"
-                    onClick={() => void openEnv(env.id, env.label)}
-                  >
-                    View / copy
-                  </button>
-                  <button
-                    type="button"
-                    className="text-sm text-violet-700 hover:underline"
-                    onClick={() =>
-                      setShareTarget({ id: env.id, label: env.label })
-                    }
-                  >
-                    Quick share link
-                  </button>
-                  {canEditEnvs ? (
-                    <button
-                      type="button"
-                      className="text-sm text-red-700 dark:text-red-400 hover:underline"
-                      onClick={() => void deleteEnv(env.id)}
-                    >
-                      Delete
-                    </button>
-                  ) : null}
-                </div>
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
 
       {shareTarget ? (
         <ShareStoredEnvModal
@@ -544,7 +377,9 @@ export default function ProjectDetailPage() {
         >
           <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-50">{viewing.label}</h3>
+              <h3 className="font-medium text-zinc-900 dark:text-zinc-50">
+                {viewing.label}
+              </h3>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -568,6 +403,221 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Tabs */}
+      <div className="mt-10 border-b border-zinc-200 dark:border-zinc-700">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          {[
+            { id: "envs", label: "Environments" },
+            { id: "versions", label: "Version History" },
+            { id: "audit", label: "Audit Log" },
+            { id: "github", label: "GitHub" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                ${
+                  activeTab === tab.id
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600"
+                }
+              `}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="mt-6">
+        {activeTab === "envs" && (
+          <section>
+            {canEditEnvs ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                  Upload / replace
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Labels are unique per project. Use labels like{" "}
+                  <code>staging</code>, <code>prod</code>.
+                </p>
+                <form
+                  onSubmit={(e) => void upload(e)}
+                  className="mt-4 grid gap-3 sm:grid-cols-2"
+                >
+                  <div className="sm:col-span-1">
+                    <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Label
+                    </label>
+                    <input
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Content
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder={"API_KEY=...\nDATABASE_URL=..."}
+                      className="mt-1 w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <button
+                      type="submit"
+                      disabled={uploadEnv.isPending}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {uploadEnv.isPending ? "Saving…" : "Save env"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : myRole === "viewer" ? (
+              <p className="rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/80 px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                You have <strong>viewer</strong> access: you can open stored
+                envs and create quick-share links, but not upload or delete
+                blobs.
+              </p>
+            ) : null}
+
+            <section className="mt-6">
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                Stored envs
+              </h2>
+              <ul className="mt-3 space-y-2">
+                {envsQuery.isPending ? (
+                  <li className="text-sm text-zinc-500 dark:text-zinc-400">
+                    Loading…
+                  </li>
+                ) : !envs?.length ? (
+                  <li className="text-sm text-zinc-500 dark:text-zinc-400">
+                    None yet.
+                  </li>
+                ) : (
+                  (envs ?? []).map((env: EnvMeta) => (
+                    <li
+                      key={env.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 px-3 py-2"
+                    >
+                      <span className="font-medium text-zinc-900 dark:text-zinc-50">
+                        {env.label}
+                      </span>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        <button
+                          type="button"
+                          className="text-sm text-blue-700 hover:underline"
+                          onClick={() => void openEnv(env.id, env.label)}
+                        >
+                          View / copy
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm text-violet-700 hover:underline"
+                          onClick={() =>
+                            setShareTarget({ id: env.id, label: env.label })
+                          }
+                        >
+                          Quick share link
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm text-emerald-700 hover:underline"
+                          onClick={() => {
+                            setSelectedEnvForVersions({
+                              id: env.id,
+                              label: env.label,
+                            });
+                            setActiveTab("versions");
+                          }}
+                        >
+                          History
+                        </button>
+                        {canEditEnvs ? (
+                          <button
+                            type="button"
+                            className="text-sm text-red-700 dark:text-red-400 hover:underline"
+                            onClick={() => void deleteEnv(env.id)}
+                          >
+                            Delete
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </section>
+          </section>
+        )}
+
+        {activeTab === "versions" && (
+          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+            {selectedEnvForVersions ? (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                    Version History
+                  </h2>
+                  <button
+                    onClick={() => setSelectedEnvForVersions(null)}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    ← Back to envs
+                  </button>
+                </div>
+                <VersionHistory
+                  projectId={projectId}
+                  envId={selectedEnvForVersions.id}
+                  envLabel={selectedEnvForVersions.label}
+                />
+              </>
+            ) : (
+              <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                <p className="mb-4">
+                  Select an environment to view its version history
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {envs?.map((env: EnvMeta) => (
+                    <button
+                      key={env.id}
+                      onClick={() =>
+                        setSelectedEnvForVersions({
+                          id: env.id,
+                          label: env.label,
+                        })
+                      }
+                      className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                      {env.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "audit" && (
+          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+            <AuditLog projectId={projectId} />
+          </section>
+        )}
+
+        {activeTab === "github" && (
+          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+            <GitHubIntegration />
+          </section>
+        )}
+      </div>
     </div>
   );
 }

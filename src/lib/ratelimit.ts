@@ -40,14 +40,14 @@ function authLimiter(): Ratelimit {
 }
 
 export async function limitUpload(
-  identifier: string
+  identifier: string,
 ): Promise<{ success: boolean; remaining?: number }> {
   const { success, remaining } = await uploadLimiter().limit(identifier);
   return { success, remaining };
 }
 
 export async function limitDownload(
-  identifier: string
+  identifier: string,
 ): Promise<{ success: boolean; remaining?: number }> {
   const { success, remaining } = await downloadLimiter().limit(identifier);
   return { success, remaining };
@@ -61,7 +61,7 @@ function hasRedisEnv(): boolean {
 }
 
 export async function limitAuth(
-  identifier: string
+  identifier: string,
 ): Promise<{ success: boolean; remaining?: number }> {
   if (!hasRedisEnv()) {
     return { success: true };

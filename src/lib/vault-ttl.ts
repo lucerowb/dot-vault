@@ -1,11 +1,6 @@
 /** Allowed vault TTLs in seconds (Zod + UI + types). */
 export const VAULT_TTL_SECONDS = [
-  300,
-  900,
-  3600,
-  28800,
-  86400,
-  604800,
+  300, 900, 3600, 28800, 86400, 604800,
 ] as const;
 
 export type VaultTtlSeconds = (typeof VAULT_TTL_SECONDS)[number];

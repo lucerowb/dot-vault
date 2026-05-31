@@ -6,7 +6,9 @@ function requireRedis(): Redis {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
-    throw new Error("Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN");
+    throw new Error(
+      "Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN",
+    );
   }
   return new Redis({ url, token });
 }
@@ -52,14 +54,12 @@ export type FetchVaultResult =
 
 export async function fetchVaultAtomic(
   redis: Redis,
-  token: string
+  token: string,
 ): Promise<FetchVaultResult> {
   const keys = [vaultKey(token), consumedKey(token)];
-  const raw = (await redis.eval(
-    VAULT_FETCH_LUA,
-    keys,
-    [String(TOMBSTONE_TTL_SECONDS)]
-  )) as unknown;
+  const raw = (await redis.eval(VAULT_FETCH_LUA, keys, [
+    String(TOMBSTONE_TTL_SECONDS),
+  ])) as unknown;
 
   if (!Array.isArray(raw) || raw.length < 1) {
     return { status: 404 };
@@ -83,7 +83,7 @@ export async function fetchVaultAtomic(
 export async function saveVault(
   redis: Redis,
   token: string,
-  record: VaultRecord
+  record: VaultRecord,
 ): Promise<void> {
   const key = vaultKey(token);
   const payload = JSON.stringify(record);
@@ -92,14 +92,14 @@ export async function saveVault(
 
 export async function deleteVaultKeys(
   redis: Redis,
-  token: string
+  token: string,
 ): Promise<void> {
   await redis.del(vaultKey(token), consumedKey(token));
 }
 
 export async function readVaultForDelete(
   redis: Redis,
-  token: string
+  token: string,
 ): Promise<VaultRecord | null> {
   const raw = await redis.get<string>(vaultKey(token));
   if (!raw || typeof raw !== "string") return null;
