@@ -44,8 +44,14 @@ export const auth = betterAuth({
   plugins: [
     dash({
       apiKey: process.env.BETTER_AUTH_API_KEY,
-      apiUrl: process.env.BETTER_AUTH_API_URL,
-      kvUrl: process.env.BETTER_AUTH_KV_URL,
+      // Only pass infra URLs when set — explicit `undefined` overrides dash defaults
+      // and breaks JWKS fetch (HTTP 500 on /api/auth/dash/validate).
+      ...(process.env.BETTER_AUTH_API_URL?.trim()
+        ? { apiUrl: process.env.BETTER_AUTH_API_URL.trim() }
+        : {}),
+      ...(process.env.BETTER_AUTH_KV_URL?.trim()
+        ? { kvUrl: process.env.BETTER_AUTH_KV_URL.trim() }
+        : {}),
     }),
     bearer(),
     nextCookies(),

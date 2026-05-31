@@ -166,6 +166,9 @@ The app uses Better Auth (`src/lib/auth.ts`) with email/password, bearer tokens 
 ```bash
 BETTER_AUTH_API_KEY="your-key-from-dashboard"
 BETTER_AUTH_URL="https://dot-vault.lucerowb.cloud"   # must match deployed origin
+# Do NOT set BETTER_AUTH_API_URL / BETTER_AUTH_KV_URL unless Better Auth docs say so —
+# leaving them unset uses https://dash.better-auth.com and https://kv.better-auth.com.
+# Setting them empty in Coolify/Docker breaks dashboard connection (HTTP 500).
 NEXT_PUBLIC_APP_URL="https://dot-vault.lucerowb.cloud"
 ```
 
@@ -578,6 +581,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_API_KEY=${BETTER_AUTH_API_KEY}
+      - BETTER_AUTH_URL=${NEXT_PUBLIC_APP_URL}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - REDIS_URL=${REDIS_URL}
