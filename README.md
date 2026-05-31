@@ -187,7 +187,14 @@ Releases are **automatic** when you merge to `main` (with changes under `package
 
 Classic **Automation** tokens also work. A normal publish token without bypass 2FA will fail in GitHub Actions with `403 Forbidden`.
 
-**To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, wait for the **Release** workflow (~2–5 min). With `NPM_TOKEN` set, the same run publishes to npm.
+**To ship a new release:** merge CLI or extension changes to `main` under `packages/cli/**` or `packages/browser-extension/**`. The Release workflow will:
+
+1. Detect what changed (CLI vs extension)
+2. **Auto-bump** the CLI patch version if that version is already on npm or already tagged
+3. Commit the version bump to `main` with `[skip ci]`
+4. Publish GitHub Release assets and npm (`@lucerowb/dot-vault`) when `NPM_TOKEN` is set
+
+You only need to edit `packages/cli/package.json` version manually for **minor/major** releases; patch releases are automatic after code changes.
 
 ### Install CLI from npm
 

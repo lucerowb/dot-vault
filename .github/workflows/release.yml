@@ -1,9 +1,9 @@
-# Automatic releases for CLI + browser extension.
+# Releases CLI + browser extension when packages/cli or packages/browser-extension change.
 #
-# Job 1: GitHub Release assets (CLI tarballs + extension zip) — always runs to completion.
-# Job 2: npm publish for `npx @lucerowb/dot-vault` — optional; needs NPM_TOKEN (granular token + bypass 2FA).
+# Versioning: before publish, bumps packages/cli to the next patch if that version
+# already exists on npm or as a git tag — no manual version bump required for fixes.
 #
-# Secrets: GITHUB_TOKEN (built-in), NPM_TOKEN (npmjs.com → copy token value into GitHub)
+# Secrets: GITHUB_TOKEN (built-in), NPM_TOKEN (npm publish)
 
 name: Release
 
@@ -11,15 +11,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "packages/cli/package.json"
-      - "packages/browser-extension/package.json"
       - "packages/cli/**"
       - "packages/browser-extension/**"
       - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish (e.g. v0.1.0). Empty = version from packages/cli/package.json."
+        description: "Pin tag (e.g. v0.1.2). Leave empty for auto version."
         required: false
         default: ""
 
@@ -31,13 +29,139 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  github-release:
-    name: GitHub Release assets
+  prepare:
+    name: Detect changes and resolve version
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      cli_changed: ${{ steps.changes.outputs.cli }}
+      extension_changed: ${{ steps.changes.outputs.extension }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            cli:
+              - 'packages/cli/**'
+            extension:
+              - 'packages/browser-extension/**'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve next release version
+        id: version
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          bump_patch() {
+            local v="${1#v}"
+            local major minor patch
+            IFS=. read -r major minor patch <<< "$v"
+            echo "${major}.${minor}.$((patch + 1))"
+          }
+
+          version_gt() {
+            [ "$(printf '%s\n' "$1" "$2" | sort -V | tail -1)" = "$2" ] && [ "$1" != "$2" ]
+          }
+
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+            VERSION="${TAG#v}"
+            echo "Using pinned tag $TAG"
+          else
+            VERSION=$(node -p "require('./packages/cli/package.json').version")
+            PUBLISHED="0.0.0"
+            if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+              PUBLISHED=$(npm view @lucerowb/dot-vault version 2>/dev/null || echo "0.0.0")
+            fi
+
+            echo "package.json version: $VERSION"
+            echo "npm published version: $PUBLISHED"
+
+            # Need a new version if npm already has this one, or git tag exists
+            needs_bump=false
+            if [ "$VERSION" = "$PUBLISHED" ]; then
+              needs_bump=true
+              echo "npm already has $VERSION — will bump patch"
+            fi
+            if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+              needs_bump=true
+              echo "git tag v${VERSION} exists — will bump patch"
+            fi
+
+            if [ "$needs_bump" = true ]; then
+              if version_gt "$VERSION" "$PUBLISHED"; then
+                VERSION=$(bump_patch "$VERSION")
+              else
+                VERSION=$(bump_patch "$PUBLISHED")
+              fi
+            fi
+
+            # Ensure tag slot is free
+            while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+              VERSION=$(bump_patch "$VERSION")
+            done
+
+            # Ensure npm slot is free (when token available)
+            if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+              while npm view "@lucerowb/dot-vault@${VERSION}" version >/dev/null 2>&1; do
+                VERSION=$(bump_patch "$VERSION")
+              done
+            fi
+
+            TAG="v${VERSION}"
+            npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
+            echo "Resolved release version: $VERSION"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bump
+        if: github.event.inputs.tag == ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/cli/package.json
+          if git diff --staged --quiet; then
+            echo "No package.json change to commit."
+            exit 0
+          fi
+          git commit -m "chore(cli): bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin HEAD:main
+
+      - name: Create release tag
+        if: github.event.inputs.tag == ''
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+  github-release:
+    name: GitHub Release assets
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -48,38 +172,12 @@ jobs:
           node-version: "20"
           cache: pnpm
 
-      - name: Resolve release tag
-        id: meta
-        run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          else
-            VERSION=$(node -p "require('./packages/cli/package.json').version")
-            TAG="v${VERSION}"
-          fi
-          VERSION="${TAG#v}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Create tag if missing
-        if: github.event_name != 'workflow_dispatch' || github.event.inputs.tag == ''
-        run: |
-          TAG="${{ steps.meta.outputs.tag }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
-          fi
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Align package versions with tag
+      - name: Align package versions
         run: |
-          VERSION="${{ steps.meta.outputs.version }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
           npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/browser-extension
           node -e "
@@ -90,15 +188,17 @@ jobs:
             fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
           "
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION: ${{ needs.prepare.outputs.version }}
 
       - name: Build CLI
+        if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: pnpm -C packages/cli run build
 
       - name: Package CLI
+        if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
-          VERSION="${{ steps.meta.outputs.version }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           rm -rf artifacts
           pnpm --filter "./packages/cli" deploy --prod "artifacts/dotvault-cli"
           tar -czf "dotvault-cli-${VERSION}.tar.gz" -C artifacts dotvault-cli
@@ -107,40 +207,46 @@ jobs:
           mv "$PACKED" "dotvault-cli-${VERSION}.npm.tgz"
 
       - name: Build browser extension
+        if: needs.prepare.outputs.extension_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: pnpm -C packages/browser-extension run build
 
       - name: Package browser extension
+        if: needs.prepare.outputs.extension_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          VERSION="${{ steps.meta.outputs.version }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           (cd packages/browser-extension/dist && zip -r "$GITHUB_WORKSPACE/dotvault-extension-${VERSION}.zip" .)
 
       - name: Checksums
         run: |
-          VERSION="${{ steps.meta.outputs.version }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           {
-            shasum -a 256 "dotvault-cli-${VERSION}.tar.gz"
-            shasum -a 256 "dotvault-cli-${VERSION}.npm.tgz"
-            shasum -a 256 "dotvault-extension-${VERSION}.zip"
+            [ -f "dotvault-cli-${VERSION}.tar.gz" ] && shasum -a 256 "dotvault-cli-${VERSION}.tar.gz"
+            [ -f "dotvault-cli-${VERSION}.npm.tgz" ] && shasum -a 256 "dotvault-cli-${VERSION}.npm.tgz"
+            [ -f "dotvault-extension-${VERSION}.zip" ] && shasum -a 256 "dotvault-extension-${VERSION}.zip"
           } > "SHA256SUMS-${VERSION}.txt"
+          cat "SHA256SUMS-${VERSION}.txt"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: DotVault ${{ steps.meta.outputs.tag }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: DotVault ${{ needs.prepare.outputs.tag }}
           generate_release_notes: true
           files: |
             dotvault-cli-*
             dotvault-extension-*
             SHA256SUMS-*
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
 
   npm-publish:
     name: Publish to npm
-    needs: github-release
+    needs: [prepare, github-release]
+    if: needs.prepare.outputs.cli_changed == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -151,32 +257,24 @@ jobs:
           node-version: "20"
           registry-url: https://registry.npmjs.org
           always-auth: true
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Align version
+      - name: Set CLI version
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            VERSION="${{ github.event.inputs.tag }}"
-            VERSION="${VERSION#v}"
-          else
-            VERSION=$(node -p "require('./packages/cli/package.json').version")
-          fi
-          npm version "$VERSION" --no-git-tag-version --allow-same-version --prefix packages/cli
-          echo "version=$VERSION" >> "$GITHUB_ENV"
+          npm version "${{ needs.prepare.outputs.version }}" --no-git-tag-version --allow-same-version --prefix packages/cli
 
-      - name: Build CLI
-        run: pnpm -C packages/cli run build
-
-      - name: Verify npm authentication and publish
+      - name: Build and publish CLI
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::warning::NPM_TOKEN secret is missing — skip npm publish."
+            echo "::warning::NPM_TOKEN not set — skip npm publish."
             exit 0
           fi
+          pnpm run build
           npm whoami
           npm publish --access public
