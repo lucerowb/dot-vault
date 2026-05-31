@@ -13,7 +13,11 @@ brew install dotvault/tap/dotvault
 ### npm
 
 ```bash
-npm install -g @dotvault/cli
+npx dot-vault@latest login
+
+# or global install
+npm install -g dot-vault
+dot-vault login
 ```
 
 ### Direct Download

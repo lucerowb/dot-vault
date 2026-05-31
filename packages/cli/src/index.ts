@@ -19,7 +19,7 @@ import fs from "fs-extra";
 import path from "path";
 
 program
-  .name("dotvault")
+  .name("dot-vault")
   .description("CLI for DotVault - secure environment variable management")
   .version("0.1.0");
 

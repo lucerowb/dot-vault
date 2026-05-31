@@ -4,7 +4,9 @@
 #   1. Ensures git tag v{version} exists (creates it if needed).
 #   2. Builds CLI + extension and uploads assets to GitHub Releases.
 #
-# No repository secrets required — uses GITHUB_TOKEN with contents: write.
+# Secrets:
+#   - GITHUB_TOKEN (built-in) — GitHub Releases
+#   - NPM_TOKEN (required for npm / npx) — Automation token from npmjs.com
 
 name: Release
 
@@ -79,6 +81,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          registry-url: https://registry.npmjs.org
           cache: pnpm
 
       - name: Install dependencies
@@ -100,15 +103,27 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
 
       - name: Build CLI
-        run: pnpm --filter dotvault build
+        run: pnpm --filter dot-vault build
 
       - name: Package CLI
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
-          pnpm deploy --filter=dotvault --prod "artifacts/dotvault-cli"
+          pnpm deploy --filter=dot-vault --prod "artifacts/dotvault-cli"
           tar -czf "dotvault-cli-${VERSION}.tar.gz" -C artifacts dotvault-cli
           (cd packages/cli && pnpm pack --pack-destination "$GITHUB_WORKSPACE")
-          mv "$GITHUB_WORKSPACE/dotvault-${VERSION}.tgz" "dotvault-cli-${VERSION}.npm.tgz"
+          mv "$GITHUB_WORKSPACE/dot-vault-${VERSION}.tgz" "dotvault-cli-${VERSION}.npm.tgz"
+
+      - name: Publish CLI to npm
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN secret is not set — skipped npm publish."
+            echo "Add an npm Automation token as repository secret NPM_TOKEN to enable npx dot-vault."
+            exit 0
+          fi
+          npm publish --access public
 
       - name: Build browser extension
         run: pnpm --filter dotvault-browser-extension build

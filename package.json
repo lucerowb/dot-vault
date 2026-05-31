@@ -1,8 +1,8 @@
 {
-  "name": "dot-vault",
+  "name": "dot-vault-web",
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.5",
-  "private": false,
+  "private": true,
   "workspaces": [
     "packages/*"
   ],
@@ -38,7 +38,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "build:cli": "pnpm --filter dotvault build",
+    "build:cli": "pnpm --filter dot-vault build",
     "build:extension": "pnpm --filter dotvault-browser-extension build",
     "brand:normalize": "node scripts/normalize-brand-logos.mjs"
   },

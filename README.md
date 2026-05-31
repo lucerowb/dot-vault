@@ -172,9 +172,25 @@ Releases are **automatic** when you merge to `main` (with changes under `package
 1. CI ensures tag `v{version}` exists (`version` from [`packages/cli/package.json`](./packages/cli/package.json)).
 2. Builds CLI + extension and publishes assets to **[Releases](https://github.com/lucerowb/dot-vault/releases)** (not just the **Tags** tab — open **Releases** for downloads).
 
-**You do not need any GitHub repository secrets** — the workflow uses the built-in `GITHUB_TOKEN` with `contents: write`.
+| Secret | Required for | How to get it |
+| ------ | ------------- | ------------- |
+| *(none)* | GitHub Release assets only | Built-in `GITHUB_TOKEN` |
+| **`NPM_TOKEN`** | **`npx dot-vault`** on npm | [npmjs.com](https://www.npmjs.com/) → Account → **Access Tokens** → **Generate Automation Token** (type: Publish) → add as repo secret `NPM_TOKEN` |
 
-**To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, wait for the **Release** workflow (~2–5 min).
+**To ship a new release:** bump `version` in `packages/cli/package.json`, merge to `main`, wait for the **Release** workflow (~2–5 min). With `NPM_TOKEN` set, the same run publishes to npm.
+
+### Install CLI from npm
+
+```bash
+# Run once (no global install)
+npx dot-vault@latest login
+
+# Or install globally
+npm install -g dot-vault
+dot-vault login
+```
+
+The command `dotvault` is also registered as an alias for the same binary.
 
 **Fix a tag that has no assets** (e.g. only “Source code zip”): **Actions → Release → Run workflow** → leave tag empty (uses package version) or set `v0.1.0`.
 
@@ -195,12 +211,12 @@ From the repo (development):
 
 ```bash
 pnpm build:cli
-node packages/cli/bin/dotvault.js login
-node packages/cli/bin/dotvault.js projects
-node packages/cli/bin/dotvault.js envs my-project-slug
-node packages/cli/bin/dotvault.js pull production -p my-project-slug -o .env
-node packages/cli/bin/dotvault.js push .env -p my-project-slug -l staging
-node packages/cli/bin/dotvault.js init   # detect local .env files and link a project
+node packages/cli/bin/dot-vault.js login
+node packages/cli/bin/dot-vault.js projects
+node packages/cli/bin/dot-vault.js envs my-project-slug
+node packages/cli/bin/dot-vault.js pull production -p my-project-slug -o .env
+node packages/cli/bin/dot-vault.js push .env -p my-project-slug -l staging
+node packages/cli/bin/dot-vault.js init   # detect local .env files and link a project
 ```
 
 Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`list`), `pull`, `push`, `delete`, `init`. Configure API URL via `login --api-url` or config file (see [docs/CLI.md](./docs/CLI.md)).
@@ -296,7 +312,7 @@ Auth routes: `/api/auth/*` (Better Auth).
 GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) uses path filters:
 
 - **App** — lint, unit tests, Next.js build when `src/`, `drizzle/`, etc. change
-- **CLI** — `pnpm --filter dotvault build` when `packages/cli/**` changes
+- **CLI** — `pnpm --filter dot-vault build` when `packages/cli/**` changes
 - **Extension** — `pnpm --filter dotvault-browser-extension build` when `packages/browser-extension/**` changes
 
 Use **Actions → CI → Run workflow** to run all jobs manually.
