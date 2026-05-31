@@ -13,10 +13,10 @@ brew install dotvault/tap/dotvault
 ### npm
 
 ```bash
-npx dot-vault@latest login
+npx @lucerowb/dot-vault@latest login
 
 # or global install
-npm install -g dot-vault
+npm install -g @lucerowb/dot-vault
 dot-vault login
 ```
 

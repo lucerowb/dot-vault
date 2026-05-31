@@ -175,12 +175,12 @@ Releases are **automatic** when you merge to `main` (with changes under `package
 | Secret | Required for | How to get it |
 | ------ | ------------- | ------------- |
 | *(none)* | GitHub Release assets only | Built-in `GITHUB_TOKEN` |
-| **`NPM_TOKEN`** | **`npx dot-vault`** on npm | See [npm token setup](#npm-token-setup-for-npx-dot-vault) below |
+| **`NPM_TOKEN`** | **`npx @lucerowb/dot-vault`** on npm | See [npm token setup](#npm-token-setup) below |
 
-#### npm token setup (for `npx dot-vault`)
+#### npm token setup
 
 1. [npmjs.com](https://www.npmjs.com/) → **Profile** → **Access Tokens** → **Generate New Token** → **Granular Access Token**
-2. Permissions: **Read and write** for packages (or limit to `dot-vault`)
+2. Permissions: **Read and write** for packages (scope `@lucerowb` or all packages)
 3. Enable **“Bypass two-factor authentication (2FA) for automation”** (required for CI; npm returns 403 without it)
 4. Copy the **token value** (`npm_…` — shown only once at creation) into GitHub **Settings → Secrets → Actions** as secret name **`NPM_TOKEN`**.  
    The token **label** on npm (e.g. `dot-vault`) is not the secret; you must paste the `npm_` string. Re-save the secret after rotating the token.
@@ -191,16 +191,16 @@ Classic **Automation** tokens also work. A normal publish token without bypass 2
 
 ### Install CLI from npm
 
+The unscoped name `dot-vault` is blocked by npm (too similar to `dotvault`). The package is published as **`@lucerowb/dot-vault`**:
+
 ```bash
 # Run once (no global install)
-npx dot-vault@latest login
+npx @lucerowb/dot-vault@latest login
 
-# Or install globally
-npm install -g dot-vault
+# Or install globally (provides `dot-vault` and `dotvault` commands)
+npm install -g @lucerowb/dot-vault
 dot-vault login
 ```
-
-The command `dotvault` is also registered as an alias for the same binary.
 
 **Fix a tag that has no assets** (e.g. only “Source code zip”): **Actions → Release → Run workflow** → leave tag empty (uses package version) or set `v0.1.0`.
 
@@ -322,7 +322,7 @@ Auth routes: `/api/auth/*` (Better Auth).
 GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) uses path filters:
 
 - **App** — lint, unit tests, Next.js build when `src/`, `drizzle/`, etc. change
-- **CLI** — `pnpm --filter dot-vault build` when `packages/cli/**` changes
+- **CLI** — `pnpm --filter @lucerowb/dot-vault build` when `packages/cli/**` changes
 - **Extension** — `pnpm --filter dotvault-browser-extension build` when `packages/browser-extension/**` changes
 
 Use **Actions → CI → Run workflow** to run all jobs manually.

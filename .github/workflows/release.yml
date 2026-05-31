@@ -1,7 +1,7 @@
 # Automatic releases for CLI + browser extension.
 #
 # Job 1: GitHub Release assets (CLI tarballs + extension zip) — always runs to completion.
-# Job 2: npm publish for `npx dot-vault` — optional; needs NPM_TOKEN (granular token + bypass 2FA).
+# Job 2: npm publish for `npx @lucerowb/dot-vault` — optional; needs NPM_TOKEN (granular token + bypass 2FA).
 #
 # Secrets: GITHUB_TOKEN (built-in), NPM_TOKEN (npmjs.com → copy token value into GitHub)
 
