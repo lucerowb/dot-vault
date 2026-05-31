@@ -105,6 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ steps.meta.outputs.version }}"
+          rm -rf artifacts
           pnpm --filter "./packages/cli" deploy --prod "artifacts/dotvault-cli"
           tar -czf "dotvault-cli-${VERSION}.tar.gz" -C artifacts dotvault-cli
           (cd packages/cli && pnpm pack --pack-destination "$GITHUB_WORKSPACE")
