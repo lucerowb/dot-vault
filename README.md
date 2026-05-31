@@ -202,12 +202,14 @@ The unscoped name `dot-vault` is blocked by npm (too similar to `dotvault`). The
 
 ```bash
 # Run once (no global install)
-npx @lucerowb/dot-vault@latest login
+npx @lucerowb/dot-vault@latest login --api-url https://your-dotvault.example.com
 
 # Or install globally (provides `dot-vault` and `dotvault` commands)
 npm install -g @lucerowb/dot-vault
-dot-vault login
+dot-vault login --api-url https://your-dotvault.example.com
 ```
+
+Full CLI docs: [`packages/cli/README.md`](./packages/cli/README.md) (shown on [npm](https://www.npmjs.com/package/@lucerowb/dot-vault)).
 
 **Fix a tag that has no assets** (e.g. only “Source code zip”): **Actions → Release → Run workflow** → leave tag empty (uses package version) or set `v0.1.0`.
 

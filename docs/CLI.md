@@ -1,6 +1,10 @@
 # DotVault CLI
 
+> **npm:** The published package README lives at [`packages/cli/README.md`](../packages/cli/README.md) (`@lucerowb/dot-vault` on npm).
+
 A command-line interface for managing environment variables and secrets directly from your terminal.
+
+> **Note:** This doc describes planned/extra commands. For the **current** CLI surface, prefer [`packages/cli/README.md`](../packages/cli/README.md).
 
 ## Installation
 

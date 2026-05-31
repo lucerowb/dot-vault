@@ -1,6 +1,6 @@
 {
   "name": "@lucerowb/dot-vault",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI for DotVault — secure environment variable management",
   "license": "MIT",
   "author": "Srijan Bajracharya <srijan.bajracharya97@gmail.com>",
@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/lucerowb/dot-vault/issues"
   },
-  "homepage": "https://github.com/lucerowb/dot-vault#readme",
+  "homepage": "https://github.com/lucerowb/dot-vault/tree/main/packages/cli#readme",
   "keywords": [
     "dotvault",
     "env",
@@ -26,6 +26,7 @@
     "dotvault": "./bin/dot-vault.js"
   },
   "files": [
+    "README.md",
     "bin",
     "dist"
   ],
