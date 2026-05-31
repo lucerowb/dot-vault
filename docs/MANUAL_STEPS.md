@@ -156,12 +156,23 @@ npm run db:check
 
 ### 1. Better Auth Setup
 
-The application uses Better Auth for authentication. No additional configuration is required unless you want to customize:
+The app uses Better Auth (`src/lib/auth.ts`) with email/password, bearer tokens (CLI), and the **Better Auth Dashboard** plugin.
 
-```typescript
-// src/lib/auth.ts (already configured)
-// Modify if you need custom session settings
+#### Connect Better Auth Dashboard
+
+1. Create a project at [better-auth.com](https://www.better-auth.com) and copy your **API key**.
+2. Set in production (and `.env.local` for local testing):
+
+```bash
+BETTER_AUTH_API_KEY="your-key-from-dashboard"
+BETTER_AUTH_URL="https://dot-vault.lucerowb.cloud"   # must match deployed origin
+NEXT_PUBLIC_APP_URL="https://dot-vault.lucerowb.cloud"
 ```
+
+3. Deploy so `https://dot-vault.lucerowb.cloud/api/auth` serves the updated app (includes `dash()` from `@better-auth/infra`).
+4. In the dashboard, set base URL to `https://dot-vault.lucerowb.cloud/api/auth` and click **Retry connection**.
+
+`BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` must match the public URL the dashboard probes. A mismatch is the most common cause of “could not connect”.
 
 ### 2. OAuth Providers (Optional)
 

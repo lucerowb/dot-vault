@@ -1,3 +1,4 @@
+import { dash } from "@better-auth/infra";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { nextCookies } from "better-auth/next-js";
@@ -40,7 +41,15 @@ export const auth = betterAuth({
     minPasswordLength: 10,
     maxPasswordLength: 128,
   },
-  plugins: [bearer(), nextCookies()],
+  plugins: [
+    dash({
+      apiKey: process.env.BETTER_AUTH_API_KEY,
+      apiUrl: process.env.BETTER_AUTH_API_URL,
+      kvUrl: process.env.BETTER_AUTH_KV_URL,
+    }),
+    bearer(),
+    nextCookies(),
+  ],
   trustedOrigins: [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter(
     (x): x is string => !!x?.trim(),
   ),
