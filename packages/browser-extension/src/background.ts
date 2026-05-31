@@ -44,8 +44,8 @@ function originPattern(apiUrl: string): string {
   return `${parsed.protocol}//${parsed.host}/*`;
 }
 
-/** Request host access for the configured DotVault instance (self-hosted HTTPS, etc.). */
-async function ensureApiHostPermission(
+/** Verify host access (request must happen in the popup during a user gesture). */
+async function verifyApiHostPermission(
   apiUrl: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -54,15 +54,11 @@ async function ensureApiHostPermission(
     if (has) {
       return { success: true };
     }
-    const granted = await chrome.permissions.request({ origins: [pattern] });
-    if (!granted) {
-      return {
-        success: false,
-        error:
-          "Allow access to your DotVault server when prompted, or check the server URL.",
-      };
-    }
-    return { success: true };
+    return {
+      success: false,
+      error:
+        "Host permission missing. Open the extension popup and save your server URL again (allow access when Chrome prompts).",
+    };
   } catch (error) {
     return {
       success: false,
@@ -96,7 +92,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "setApiUrl": {
           const normalized = normalizeApiUrl(request.apiUrl);
-          const permission = await ensureApiHostPermission(normalized);
+          const permission = await verifyApiHostPermission(normalized);
           if (!permission.success) {
             sendResponse(permission);
             break;
@@ -225,7 +221,7 @@ async function login(
       };
     }
 
-    const permission = await ensureApiHostPermission(apiBase(config));
+    const permission = await verifyApiHostPermission(apiBase(config));
     if (!permission.success) {
       return permission;
     }

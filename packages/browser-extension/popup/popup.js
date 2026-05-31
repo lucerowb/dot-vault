@@ -29,6 +29,48 @@ async function sendBackgroundMessage(message) {
   }
 }
 
+function normalizeApiUrl(url) {
+  return url.trim().replace(/\/$/, "");
+}
+
+function originPattern(apiUrl) {
+  const parsed = new URL(apiUrl);
+  return `${parsed.protocol}//${parsed.host}/*`;
+}
+
+/**
+ * Request host permission during a user gesture.
+ * Must be called synchronously from a click handler (no await before this).
+ * If permission was already granted, Chrome resolves without showing a prompt.
+ */
+function requestApiHostPermission(apiUrl, callback) {
+  let pattern;
+  try {
+    pattern = originPattern(normalizeApiUrl(apiUrl));
+  } catch {
+    callback({ success: false, error: "Invalid server URL" });
+    return;
+  }
+
+  chrome.permissions.request({ origins: [pattern] }, (granted) => {
+    if (chrome.runtime.lastError) {
+      callback({
+        success: false,
+        error: chrome.runtime.lastError.message || "Permission request failed",
+      });
+      return;
+    }
+    if (granted) {
+      callback({ success: true });
+    } else {
+      callback({
+        success: false,
+        error: "Allow access to your DotVault server when Chrome prompts you.",
+      });
+    }
+  });
+}
+
 function updateInstanceFooter(apiUrl) {
   const link = document.getElementById("instance-link");
   if (!link) return;
@@ -128,29 +170,35 @@ function showServerSetup(container) {
     </div>
   `;
 
-  document
-    .getElementById("save-server-btn")
-    .addEventListener("click", async () => {
-      const apiUrlInput = document.getElementById("api-url").value.trim();
-      const errorDiv = document.getElementById("setup-error");
-      const btn = document.getElementById("save-server-btn");
+  document.getElementById("save-server-btn").addEventListener("click", () => {
+    const apiUrlInput = document.getElementById("api-url").value.trim();
+    const errorDiv = document.getElementById("setup-error");
+    const btn = document.getElementById("save-server-btn");
 
-      if (!apiUrlInput) {
-        errorDiv.innerHTML =
-          '<div class="error-message">Enter your DotVault server URL</div>';
+    if (!apiUrlInput) {
+      errorDiv.innerHTML =
+        '<div class="error-message">Enter your DotVault server URL</div>';
+      return;
+    }
+
+    try {
+      new URL(apiUrlInput);
+    } catch {
+      errorDiv.innerHTML =
+        '<div class="error-message">Use a full URL including https:// or http://</div>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    requestApiHostPermission(apiUrlInput, async (permission) => {
+      if (!permission.success) {
+        errorDiv.innerHTML = `<div class="error-message">${escapeHtml(permission.error)}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Save & continue";
         return;
       }
-
-      try {
-        new URL(apiUrlInput);
-      } catch {
-        errorDiv.innerHTML =
-          '<div class="error-message">Use a full URL including https:// or http://</div>';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = "Saving...";
 
       const result = await sendBackgroundMessage({
         action: "setApiUrl",
@@ -165,6 +213,7 @@ function showServerSetup(container) {
         btn.textContent = "Save & continue";
       }
     });
+  });
 }
 
 function showLogin(container) {
@@ -202,11 +251,12 @@ function showLogin(container) {
       await init();
     });
 
-  document.getElementById("login-btn").addEventListener("click", async () => {
+  document.getElementById("login-btn").addEventListener("click", () => {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     const errorDiv = document.getElementById("login-error");
     const btn = document.getElementById("login-btn");
+    const apiUrl = currentConfig?.apiUrl;
 
     if (!email || !password) {
       errorDiv.innerHTML =
@@ -214,22 +264,37 @@ function showLogin(container) {
       return;
     }
 
+    if (!apiUrl?.trim()) {
+      errorDiv.innerHTML =
+        '<div class="error-message">Configure your server URL first</div>';
+      return;
+    }
+
     btn.disabled = true;
     btn.textContent = "Signing in...";
 
-    const result = await sendBackgroundMessage({
-      action: "login",
-      email,
-      password,
-    });
+    requestApiHostPermission(apiUrl, async (permission) => {
+      if (!permission.success) {
+        errorDiv.innerHTML = `<div class="error-message">${escapeHtml(permission.error)}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Sign In";
+        return;
+      }
 
-    if (result?.success) {
-      await init();
-    } else {
-      errorDiv.innerHTML = `<div class="error-message">${escapeHtml(result?.error || "Login failed")}</div>`;
-      btn.disabled = false;
-      btn.textContent = "Sign In";
-    }
+      const result = await sendBackgroundMessage({
+        action: "login",
+        email,
+        password,
+      });
+
+      if (result?.success) {
+        await init();
+      } else {
+        errorDiv.innerHTML = `<div class="error-message">${escapeHtml(result?.error || "Login failed")}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Sign In";
+      }
+    });
   });
 }
 
