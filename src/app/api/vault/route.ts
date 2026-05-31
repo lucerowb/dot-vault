@@ -1,6 +1,7 @@
 import { jsonVaultError, jsonVaultSuccess } from "@/lib/api-response";
 import { getClientIp } from "@/lib/ip";
 import { limitUpload } from "@/lib/ratelimit";
+import { vaultRateLimitedResponse } from "@/lib/vault-rate-limit-response";
 import { CreateVaultSchema, MAX_VAULT_BODY_BYTES } from "@/lib/schemas";
 import { generateDeleteToken, generateVaultToken } from "@/lib/tokens";
 import { getRedis, saveVault } from "@/lib/vault-store";
@@ -11,16 +12,9 @@ export const runtime = "edge";
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
-    const { success, remaining } = await limitUpload(ip);
-    if (!success) {
-      return jsonVaultError(
-        "RATE_LIMITED",
-        "Too many uploads. Try again later.",
-        429,
-        remaining !== undefined
-          ? { "X-RateLimit-Remaining": String(remaining) }
-          : undefined,
-      );
+    const uploadLimit = await limitUpload(ip);
+    if (!uploadLimit.success) {
+      return vaultRateLimitedResponse("upload", uploadLimit);
     }
 
     const contentLength = Number(request.headers.get("content-length") || 0);

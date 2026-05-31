@@ -25,10 +25,39 @@ export type GetVaultResponseData = {
   oneTime: boolean;
 };
 
+/** Recorded when a recipient fetches ciphertext (sender-only via delete token). */
+export type VaultAccessEvent = {
+  at: number;
+  ip: string;
+  userAgent: string | null;
+  referer: string | null;
+};
+
+export type VaultInsightsData = {
+  state: "active" | "consumed" | "missing" | "revoked";
+  expiresAt: number | null;
+  oneTime: boolean | null;
+  openCount: number;
+  uniqueIps: number;
+  firstOpenedAt: number | null;
+  lastOpenedAt: number | null;
+  safetyHint:
+    | "not_opened"
+    | "opened_once"
+    | "opened_multiple"
+    | "multiple_ips";
+  accesses: VaultAccessEvent[];
+};
+
 export type ApiSuccess<T> = { success: true; data: T };
 export type ApiError = {
   success: false;
-  error: { code: string; message: string };
+  error: {
+    code: string;
+    message: string;
+    /** Unix ms when the rate limit window resets. */
+    retryAtMs?: number;
+  };
 };
 
 export type FragmentV1 = { version: 1; keyMaterial: Uint8Array };

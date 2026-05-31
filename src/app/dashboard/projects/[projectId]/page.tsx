@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-
-import { ShareStoredEnvModal } from "@/components/ShareStoredEnvModal";
+import { EnvActiveShareBadge } from "@/components/EnvActiveShareBadge";
 import { VersionHistory } from "@/components/VersionHistory";
 import { AuditLog } from "@/components/AuditLog";
 import { GitHubIntegration } from "@/components/GitHubIntegration";
-import { apiGet, getErrorMessage } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
+import { getErrorMessage } from "@/lib/api-client";
+import { toastError, toastSuccess } from "@/lib/toast";
 import {
   useDeleteEnv,
   useDeleteProject,
@@ -23,7 +21,6 @@ import {
   useUploadEnv,
 } from "@/hooks/use-projects";
 import type {
-  EnvContent,
   EnvMeta,
   ProjectRole,
   TeamMember,
@@ -35,7 +32,6 @@ export default function ProjectDetailPage() {
   const projectId = params.projectId;
   const router = useRouter();
 
-  const queryClient = useQueryClient();
   const projectQuery = useProject(projectId);
   const envsQuery = useProjectEnvs(projectId);
   const teamQuery = useProjectTeam(projectId);
@@ -52,16 +48,8 @@ export default function ProjectDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [label, setLabel] = useState("default");
   const [content, setContent] = useState("");
-  const [viewing, setViewing] = useState<{
-    label: string;
-    content: string;
-  } | null>(null);
-  const [shareTarget, setShareTarget] = useState<{
-    id: string;
-    label: string;
-  } | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "envs" | "versions" | "audit" | "github"
+    "envs" | "versions" | "audit" | "integration"
   >("envs");
   const [selectedEnvForVersions, setSelectedEnvForVersions] = useState<{
     id: string;
@@ -88,8 +76,11 @@ export default function ProjectDetailPage() {
     try {
       await uploadEnv.mutateAsync({ label: label.trim(), content });
       setContent("");
+      toastSuccess(`Uploaded env "${label.trim() || "default"}"`);
     } catch (err) {
-      setActionError(getErrorMessage(err, "Upload failed."));
+      const msg = getErrorMessage(err, "Upload failed.");
+      setActionError(msg);
+      toastError(msg);
     }
   }
 
@@ -98,22 +89,11 @@ export default function ProjectDetailPage() {
     setActionError(null);
     try {
       await deleteEnvMutation.mutateAsync(id);
+      toastSuccess("Environment deleted");
     } catch {
-      setActionError("Could not delete.");
-    }
-  }
-
-  async function openEnv(id: string, labelName: string) {
-    setActionError(null);
-    try {
-      const data = await queryClient.fetchQuery({
-        queryKey: queryKeys.projects.env(projectId, id),
-        queryFn: () =>
-          apiGet<EnvContent>(`/api/projects/${projectId}/envs/${id}`),
-      });
-      setViewing({ label: labelName, content: data.content });
-    } catch (err) {
-      setActionError(getErrorMessage(err, "Could not load env."));
+      const msg = "Could not delete.";
+      setActionError(msg);
+      toastError(msg);
     }
   }
 
@@ -122,15 +102,13 @@ export default function ProjectDetailPage() {
     setActionError(null);
     try {
       await deleteProjectMutation.mutateAsync();
+      toastSuccess("Project deleted");
       router.push("/dashboard");
     } catch {
-      setActionError("Could not delete project.");
+      const msg = "Could not delete project.";
+      setActionError(msg);
+      toastError(msg);
     }
-  }
-
-  async function copyViewing() {
-    if (!viewing) return;
-    await navigator.clipboard.writeText(viewing.content);
   }
 
   async function sendInvite(e: React.FormEvent) {
@@ -146,11 +124,15 @@ export default function ProjectDetailPage() {
       if (result.acceptUrl) {
         await navigator.clipboard.writeText(result.acceptUrl);
         setInviteFlash("Invite created. Accept link copied to clipboard.");
+        toastSuccess("Invite created — accept link copied to clipboard");
       } else {
         setInviteFlash("Invite created.");
+        toastSuccess("Invite created");
       }
     } catch (err) {
-      setActionError(getErrorMessage(err, "Invite failed."));
+      const msg = getErrorMessage(err, "Invite failed.");
+      setActionError(msg);
+      toastError(msg);
     }
   }
 
@@ -158,8 +140,11 @@ export default function ProjectDetailPage() {
     setActionError(null);
     try {
       await revokeInviteMutation.mutateAsync(id);
+      toastSuccess("Invite revoked");
     } catch {
-      setActionError("Could not revoke invite.");
+      const msg = "Could not revoke invite.";
+      setActionError(msg);
+      toastError(msg);
     }
   }
 
@@ -168,8 +153,11 @@ export default function ProjectDetailPage() {
     setActionError(null);
     try {
       await removeMemberMutation.mutateAsync(userId);
+      toastSuccess("Collaborator removed");
     } catch {
-      setActionError("Could not remove member.");
+      const msg = "Could not remove member.";
+      setActionError(msg);
+      toastError(msg);
     }
   }
 
@@ -359,51 +347,6 @@ export default function ProjectDetailPage() {
         </section>
       ) : null}
 
-      {shareTarget ? (
-        <ShareStoredEnvModal
-          projectId={projectId}
-          envId={shareTarget.id}
-          envLabel={shareTarget.label}
-          open={!!shareTarget}
-          onClose={() => setShareTarget(null)}
-        />
-      ) : null}
-
-      {viewing ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          role="dialog"
-          aria-modal
-        >
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-50">
-                {viewing.label}
-              </h3>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white"
-                  onClick={() => void copyViewing()}
-                >
-                  Copy all
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                  onClick={() => setViewing(null)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            <pre className="max-h-[60vh] overflow-auto p-4 text-left text-xs leading-relaxed text-zinc-800 dark:text-zinc-200">
-              {viewing.content}
-            </pre>
-          </div>
-        </div>
-      ) : null}
-
       {/* Tabs */}
       <div className="mt-10 border-b border-zinc-200 dark:border-zinc-700">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
@@ -411,7 +354,7 @@ export default function ProjectDetailPage() {
             { id: "envs", label: "Environments" },
             { id: "versions", label: "Version History" },
             { id: "audit", label: "Audit Log" },
-            { id: "github", label: "GitHub" },
+            { id: "integration", label: "Integration" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -508,39 +451,37 @@ export default function ProjectDetailPage() {
                       key={env.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 px-3 py-2"
                     >
-                      <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                        {env.label}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/dashboard/projects/${projectId}/envs/${env.id}`}
+                          className="font-medium text-zinc-900 hover:text-blue-700 dark:text-zinc-50 dark:hover:text-blue-400"
+                        >
+                          {env.label}
+                        </Link>
+                        <EnvActiveShareBadge
+                          projectId={projectId}
+                          envId={env.id}
+                        />
+                      </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
-                        <button
-                          type="button"
-                          className="text-sm text-blue-700 hover:underline"
-                          onClick={() => void openEnv(env.id, env.label)}
+                        <Link
+                          href={`/dashboard/projects/${projectId}/envs/${env.id}`}
+                          className="text-sm text-blue-700 hover:underline dark:text-blue-400"
                         >
-                          View / copy
-                        </button>
-                        <button
-                          type="button"
-                          className="text-sm text-violet-700 hover:underline"
-                          onClick={() =>
-                            setShareTarget({ id: env.id, label: env.label })
-                          }
+                          Open
+                        </Link>
+                        <Link
+                          href={`/dashboard/projects/${projectId}/envs/${env.id}?tab=shares`}
+                          className="text-sm text-violet-700 hover:underline dark:text-violet-400"
                         >
-                          Quick share link
-                        </button>
-                        <button
-                          type="button"
-                          className="text-sm text-emerald-700 hover:underline"
-                          onClick={() => {
-                            setSelectedEnvForVersions({
-                              id: env.id,
-                              label: env.label,
-                            });
-                            setActiveTab("versions");
-                          }}
+                          Quick shares
+                        </Link>
+                        <Link
+                          href={`/dashboard/projects/${projectId}/envs/${env.id}?tab=versions`}
+                          className="text-sm text-emerald-700 hover:underline dark:text-emerald-400"
                         >
-                          History
-                        </button>
+                          Versions
+                        </Link>
                         {canEditEnvs ? (
                           <button
                             type="button"
@@ -612,8 +553,8 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
-        {activeTab === "github" && (
-          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900/90 p-5 shadow-sm">
+        {activeTab === "integration" && (
+          <section>
             <GitHubIntegration />
           </section>
         )}

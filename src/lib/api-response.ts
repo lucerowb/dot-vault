@@ -26,10 +26,11 @@ export function jsonError(
   message: string,
   status: number,
   headers?: HeadersInit,
+  errorExtras?: Omit<ApiError["error"], "code" | "message">,
 ) {
   const body: ApiError = {
     success: false,
-    error: { code, message },
+    error: { code, message, ...errorExtras },
   };
   return NextResponse.json(body, { status, headers });
 }
@@ -43,10 +44,11 @@ export function jsonVaultError(
   message: string,
   status: number,
   headers?: HeadersInit,
+  errorExtras?: Omit<ApiError["error"], "code" | "message">,
 ) {
   const merged = new Headers(VAULT_RESPONSE_HEADERS);
   if (headers) {
     new Headers(headers).forEach((value, key) => merged.set(key, value));
   }
-  return jsonError(code, message, status, merged);
+  return jsonError(code, message, status, merged, errorExtras);
 }

@@ -13,20 +13,22 @@ test.describe("quick share crypto flow", () => {
   );
 
   test("encrypt, share, and decrypt round-trip", async ({ page }) => {
+    test.setTimeout(120_000);
+
     await page.goto("/quick-share");
 
-    const textarea = page.getByPlaceholder(
-      "Or paste environment file contents…",
-    );
-    await textarea.fill(SAMPLE_ENV);
-    await textarea.blur();
-
-    await expect(page.getByText("Share link")).toBeVisible({ timeout: 60_000 });
+    // File upload triggers encrypt+upload; fill()+blur is unreliable in Playwright.
+    await page.setInputFiles('input[type="file"]', {
+      name: "dotvault-e2e.env",
+      mimeType: "text/plain",
+      buffer: Buffer.from(SAMPLE_ENV, "utf-8"),
+    });
 
     const shareLink = page
       .locator("code")
-      .filter({ hasText: "/r/tk_" })
+      .filter({ hasText: /\/r\/tk_/ })
       .first();
+    await expect(shareLink).toBeVisible({ timeout: 90_000 });
     const href = await shareLink.textContent();
     expect(href).toMatch(/\/r\/tk_[a-f0-9]{32}#/);
 

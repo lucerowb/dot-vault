@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 
+import { toastCopied } from "@/lib/toast";
+
 type Props = {
   shareUrl: string;
   deleteToken: string;
@@ -36,11 +38,13 @@ export function ShareLink({ shareUrl, deleteToken, expiresAt, token }: Props) {
   async function copyLink() {
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
+    toastCopied("Share link");
     setTimeout(() => setCopied(false), 2000);
   }
 
   async function copyDelete() {
     await navigator.clipboard.writeText(deleteToken);
+    toastCopied("Delete token");
   }
 
   return (

@@ -1,6 +1,10 @@
 import { Ratelimit } from "@upstash/ratelimit";
 
 import { getRedis } from "@/lib/redis";
+import {
+  isRateLimitBypassed,
+  type RateLimitResult,
+} from "@/lib/rate-limit-utils";
 
 let _upload: Ratelimit | null = null;
 let _download: Ratelimit | null = null;
@@ -39,18 +43,20 @@ function authLimiter(): Ratelimit {
   return _auth;
 }
 
-export async function limitUpload(
-  identifier: string,
-): Promise<{ success: boolean; remaining?: number }> {
-  const { success, remaining } = await uploadLimiter().limit(identifier);
-  return { success, remaining };
+function bypassed(): RateLimitResult {
+  return { success: true, remaining: 999 };
 }
 
-export async function limitDownload(
-  identifier: string,
-): Promise<{ success: boolean; remaining?: number }> {
-  const { success, remaining } = await downloadLimiter().limit(identifier);
-  return { success, remaining };
+export async function limitUpload(identifier: string): Promise<RateLimitResult> {
+  if (isRateLimitBypassed()) return bypassed();
+  const { success, remaining, reset } = await uploadLimiter().limit(identifier);
+  return { success, remaining, reset };
+}
+
+export async function limitDownload(identifier: string): Promise<RateLimitResult> {
+  if (isRateLimitBypassed()) return bypassed();
+  const { success, remaining, reset } = await downloadLimiter().limit(identifier);
+  return { success, remaining, reset };
 }
 
 function hasRedisEnv(): boolean {
@@ -62,10 +68,10 @@ function hasRedisEnv(): boolean {
 
 export async function limitAuth(
   identifier: string,
-): Promise<{ success: boolean; remaining?: number }> {
-  if (!hasRedisEnv()) {
-    return { success: true };
+): Promise<RateLimitResult> {
+  if (!hasRedisEnv() || isRateLimitBypassed()) {
+    return bypassed();
   }
-  const { success, remaining } = await authLimiter().limit(identifier);
-  return { success, remaining };
+  const { success, remaining, reset } = await authLimiter().limit(identifier);
+  return { success, remaining, reset };
 }

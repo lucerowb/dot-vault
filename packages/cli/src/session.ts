@@ -125,7 +125,7 @@ async function actionPickProject(session: CliSession): Promise<CliSession> {
   return next;
 }
 
-async function actionCreateProject(session: CliSession): Promise<CliSession> {
+async function actionCreateProject(): Promise<CliSession> {
   await ensureAuth();
   const name = await input({
     message: "Project display name",
@@ -393,7 +393,7 @@ export async function runInteractiveSession(): Promise<void> {
           session = await actionPickProject(session);
           break;
         case "create-project":
-          session = await actionCreateProject(session);
+          session = await actionCreateProject();
           break;
         case "list-envs":
           await actionListEnvs(session);

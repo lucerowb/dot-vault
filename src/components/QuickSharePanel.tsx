@@ -4,7 +4,14 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 
-import { createQuickShare } from "@/lib/quick-share-client";
+import { useNowMs } from "@/hooks/use-now-ms";
+
+import {
+  createQuickShare,
+  QuickShareRateLimitError,
+} from "@/lib/quick-share-client";
+import { RateLimitCountdown } from "@/components/RateLimitCountdown";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { TTL_OPTIONS, type VaultTtlSeconds } from "@/lib/vault-ttl";
 
 import { ShareLink } from "@/components/ShareLink";
@@ -17,17 +24,25 @@ export function QuickSharePanel() {
   const [passphrase, setPassphrase] = useState("");
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rateLimitUntilMs, setRateLimitUntilMs] = useState<number | null>(null);
   const [share, setShare] = useState<{
     url: string;
     deleteToken: string;
     expiresAt: number;
     token: string;
   } | null>(null);
+  const nowMs = useNowMs();
+
+  const rateLimited =
+    rateLimitUntilMs !== null && rateLimitUntilMs > nowMs;
 
   async function encryptAndUpload(text: string) {
+    if (rateLimited) return;
     setError(null);
     if (usePassphrase && !passphrase.trim()) {
-      setError("Enter a passphrase or disable passphrase protection.");
+      const msg = "Enter a passphrase or disable passphrase protection.";
+      setError(msg);
+      toastError(msg);
       return;
     }
     setBusy(true);
@@ -39,12 +54,21 @@ export function QuickSharePanel() {
         passphrase: usePassphrase ? passphrase : undefined,
       });
       setShare(result);
+      toastSuccess("Quick share link created");
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Something went wrong. Check your connection and try again.",
-      );
+      if (e instanceof QuickShareRateLimitError) {
+        setRateLimitUntilMs(e.retryAtMs);
+        setError(null);
+        toastError("Too many uploads — wait before creating another link");
+      } else {
+        setRateLimitUntilMs(null);
+        const msg =
+          e instanceof Error
+            ? e.message
+            : "Something went wrong. Check your connection and try again.";
+        setError(msg);
+        toastError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -77,7 +101,7 @@ export function QuickSharePanel() {
         <>
           <div id="share" className="flex w-full flex-col items-center">
             <UploadZone
-              disabled={busy}
+              disabled={busy || rateLimited}
               onFile={(t) => void encryptAndUpload(t)}
               onPasteText={(t) => void encryptAndUpload(t)}
             />
@@ -141,6 +165,17 @@ export function QuickSharePanel() {
               </div>
             </div>
 
+            {rateLimitUntilMs ? (
+              <div className="mt-6 max-w-xl">
+                <RateLimitCountdown
+                  retryAtMs={rateLimitUntilMs}
+                  onReady={() => {
+                    setRateLimitUntilMs(null);
+                    toastSuccess("You can create another link now");
+                  }}
+                />
+              </div>
+            ) : null}
             {error ? (
               <motion.p
                 initial={{ opacity: 0 }}

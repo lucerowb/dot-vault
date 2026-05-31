@@ -109,6 +109,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true; // Keep message channel open for async
 });
 
+function apiBase(config: DotVaultConfig): string {
+  return config.apiUrl.replace(/\/$/, "");
+}
+
 // Get configuration from storage
 async function getConfig(): Promise<DotVaultConfig> {
   const result = await chrome.storage.local.get("config");
@@ -130,8 +134,7 @@ async function login(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const config = await getConfig();
-    const base = config.apiUrl.replace(/\/$/, "");
-    const response = await fetch(`${base}/api/auth/sign-in/email`, {
+    const response = await fetch(`${apiBase(config)}/api/auth/sign-in/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -181,7 +184,7 @@ async function syncProjects(): Promise<{
     }
 
     // Fetch projects
-    const projectsResponse = await fetch(`${config.apiUrl}/api/projects`, {
+    const projectsResponse = await fetch(`${apiBase(config)}/api/projects`, {
       headers: {
         Authorization: `Bearer ${config.apiToken}`,
       },
@@ -197,7 +200,7 @@ async function syncProjects(): Promise<{
     // Fetch envs for each project
     for (const project of projectsData.data || []) {
       const envsResponse = await fetch(
-        `${config.apiUrl}/api/projects/${project.id}/envs`,
+        `${apiBase(config)}/api/projects/${project.id}/envs`,
         {
           headers: {
             Authorization: `Bearer ${config.apiToken}`,
@@ -240,7 +243,7 @@ async function getEnvContent(
     }
 
     const response = await fetch(
-      `${config.apiUrl}/api/projects/${projectId}/envs/${envId}`,
+      `${apiBase(config)}/api/projects/${projectId}/envs/${envId}`,
       {
         headers: {
           Authorization: `Bearer ${config.apiToken}`,

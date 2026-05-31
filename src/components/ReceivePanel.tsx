@@ -9,6 +9,8 @@ import {
   importKeyFromFragment,
 } from "@/lib/crypto";
 import { parseFragment } from "@/lib/fragment";
+import { toastCopied, toastSuccess } from "@/lib/toast";
+import { clearCachedVaultPayload } from "@/lib/vault-payload-cache";
 import type { ParsedFragment } from "@/types/vault.types";
 
 type Phase =
@@ -43,40 +45,61 @@ export function ReceivePanel({ token }: Props) {
   const [phase, setPhase] = useState<Phase>(initialPhaseFromHash);
   const [pass, setPass] = useState("");
   const autoDecryptStarted = useRef(false);
+  /** In-memory only: retry decrypt after a successful fetch in this page session. */
+  const payloadRef = useRef<{ iv: string; ciphertext: string } | null>(null);
 
   const runDecrypt = useCallback(
     async (fragment: ParsedFragment, passphrase?: string) => {
       setPhase({ kind: "decrypting" });
       try {
-        const res = await fetch(`/api/vault/${encodeURIComponent(token)}`, {
-          method: "GET",
-          cache: "no-store",
-        });
-        const json = (await res.json()) as {
-          success?: boolean;
-          data?: { iv: string; ciphertext: string };
-          error?: { message?: string };
-        };
+        let ivB64: string;
+        let ciphertextB64: string;
 
-        if (res.status === 410) {
-          setPhase({
-            kind: "error",
-            message:
-              json.error?.message ?? "This one-time link was already opened.",
+        if (payloadRef.current) {
+          ivB64 = payloadRef.current.iv;
+          ciphertextB64 = payloadRef.current.ciphertext;
+        } else {
+          const res = await fetch(`/api/vault/${encodeURIComponent(token)}`, {
+            method: "POST",
+            cache: "no-store",
           });
-          return;
-        }
-        if (!res.ok || !json.success || !json.data) {
-          setPhase({
-            kind: "error",
-            message: json.error?.message ?? "Could not load this vault.",
-          });
-          return;
+          const json = (await res.json()) as {
+            success?: boolean;
+            data?: { iv: string; ciphertext: string };
+            error?: { message?: string; code?: string };
+          };
+
+          if (res.status === 410 || json.error?.code === "GONE") {
+            clearCachedVaultPayload(token);
+            payloadRef.current = null;
+            setPhase({
+              kind: "error",
+              message:
+                json.error?.message ??
+                "This link is no longer available (revoked or already opened).",
+            });
+            return;
+          }
+          if (!res.ok || !json.success || !json.data) {
+            clearCachedVaultPayload(token);
+            payloadRef.current = null;
+            const message =
+              json.error?.message ??
+              (res.status === 404
+                ? "Vault not found or expired. The link may have been revoked, expired, or created on a different deployment."
+                : "Could not load this vault.");
+            setPhase({ kind: "error", message });
+            return;
+          }
+
+          ivB64 = json.data.iv;
+          ciphertextB64 = json.data.ciphertext;
+          payloadRef.current = { iv: ivB64, ciphertext: ciphertextB64 };
         }
 
         const key = await importKeyFromFragment(fragment, passphrase);
-        const iv = base64ToBytes(json.data.iv);
-        const ciphertext = base64ToBytes(json.data.ciphertext);
+        const iv = base64ToBytes(ivB64);
+        const ciphertext = base64ToBytes(ciphertextB64);
         const plaintext = await decryptUtf8(iv, ciphertext, key);
         setPhase({ kind: "ready", plaintext });
       } catch {
@@ -88,6 +111,11 @@ export function ReceivePanel({ token }: Props) {
     },
     [token],
   );
+
+  useEffect(() => {
+    clearCachedVaultPayload(token);
+    payloadRef.current = null;
+  }, [token]);
 
   useEffect(() => {
     if (phase.kind !== "loading" || autoDecryptStarted.current) {
@@ -113,6 +141,7 @@ export function ReceivePanel({ token }: Props) {
   async function copyPlain() {
     if (phase.kind !== "ready") return;
     await navigator.clipboard.writeText(phase.plaintext);
+    toastCopied("Content");
   }
 
   function downloadEnv() {
@@ -124,6 +153,7 @@ export function ReceivePanel({ token }: Props) {
     a.download = "dotvault.env";
     a.click();
     URL.revokeObjectURL(url);
+    toastSuccess("Download started");
   }
 
   if (phase.kind === "loading" || phase.kind === "decrypting") {
