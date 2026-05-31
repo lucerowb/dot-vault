@@ -1,6 +1,8 @@
 {
   "name": "dotvault-browser-extension",
   "version": "1.0.0",
+  "private": true,
+  "type": "module",
   "description": "Browser extension for DotVault - Secure environment variable manager",
   "scripts": {
     "build": "node scripts/build.js",

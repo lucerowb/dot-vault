@@ -1,7 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# See https://help.github.com/articles/ignoring-files/
 
 # dependencies
-/node_modules
+node_modules/
+**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,18 +11,27 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# nested package managers (monorepo uses root pnpm-lock.yaml)
+packages/**/package-lock.json
+packages/**/node_modules/.package-lock.json
 
-# next.js
+# build outputs
+dist/
+**/dist/
+/build
 /.next/
 /out/
 
-# production
-/build
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
 
 # debug

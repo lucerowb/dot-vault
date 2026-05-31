@@ -3,7 +3,7 @@
 **Ephemeral _and_ authenticated cloud storage for `.env` files.**
 
 - **Quick share** — encrypt in the browser (**AES-256-GCM**), store ciphertext in [Upstash Redis](https://upstash.com/), put the key in the **URL fragment** so it never hits your server.
-- **Cloud vault** — sign in with [**Better Auth**](https://www.better-auth.com/) (email + password), organize **projects**, upload and **view / update / delete** env blobs stored in [**Supabase Postgres**](https://supabase.com/) via [Drizzle ORM](https://orm.drizzle.team/). Payloads are **encrypted at rest** on the server with **AES-256-GCM** using `STORAGE_ENCRYPTION_KEY` (see security note below).
+- **Cloud vault** — sign in with [**Better Auth**](https://www.better-auth.com/) (email + password), organize **projects**, upload and **view / update / delete** env blobs stored in [**Supabase Postgres**](https://supabase.com/) via [Drizzle ORM](https://orm.drizzle.team/). Payloads are **encrypted at rest** with **AES-256-GCM** using `STORAGE_ENCRYPTION_KEY`.
 
 |                |                                                                                              |
 | -------------- | -------------------------------------------------------------------------------------------- |
@@ -13,29 +13,18 @@
 
 ---
 
-## Features
+## Table of contents
 
-### Quick share (Redis)
-
-- **Client-side encryption** — AES-256-GCM with a random 12-byte IV per upload.
-- **Key in the fragment** — Share `https://your-domain/r/<token>#v1.<key>`; the part after `#` stays on the client.
-- **Optional passphrase** — PBKDF2 (600k iterations, SHA-256) + AES-KW wrapping (`v2.` fragments).
-- **TTL vaults** — 1h, 8h, 24h, or 7d; Redis `EXPIRE` removes data automatically.
-- **One-time links** — First successful fetch consumes the vault (Lua + tombstone → **410** on replay).
-- **Sender revoke** — `DELETE /api/vault/:token` with `X-Delete-Token`.
-
-### Cloud vault (Better Auth + Supabase)
-
-- **Accounts** — Better Auth with Drizzle schema on Postgres (works with Supabase’s connection string).
-- **Projects** — Create, rename, delete; slug unique per user.
-- **Collaboration** — Project **owner** invites by email (`editor` or `viewer`). Invitees open `/invite/<token>` while signed in with the invited address. **Editors** can upload/replace/delete env blobs; **viewers** can read and use quick-share from stored envs. Apply migration `drizzle/0001_project_collab.sql` (or `pnpm run db:migrate`) after `0000_init`.
-- **Env files** — Per-project **labels** (e.g. `staging`, `prod`); POST **creates or overwrites** the same label.
-- **Authorization** — Session cookies plus **owner / member role** checks on project and env routes (not Supabase Auth RLS; use the **service / direct Postgres** URI from Supabase).
-
-### Shared
-
-- **Rate limits** (quick share uploads/downloads) via [`@upstash/ratelimit`](https://github.com/upstash/ratelimit-js).
-- **Security headers** — CSP, HSTS, framing, no-referrer in [`next.config.ts`](./next.config.ts).
+- [Quick start](#quick-start)
+- [Monorepo packages](#monorepo-packages)
+- [Features](#features)
+- [How to use](#how-to-use)
+- [Environment variables](#environment-variables)
+- [HTTP API](#http-api)
+- [CI](#ci)
+- [Documentation](#documentation)
+- [Security notes](#security-notes)
+- [Deploying](#deploying)
 
 ---
 
@@ -43,9 +32,9 @@
 
 ### Prerequisites
 
-- Node.js **20+** and **[pnpm](https://pnpm.io/)** (or use `npx` / `npm` equivalents).
-- **Supabase**: create a project → **Settings → Database → Connection string** (URI). Append `?sslmode=require` if needed.
-- **Upstash Redis** (HTTP REST): only required for ephemeral quick share (`/api/vault`).
+- Node.js **20+** and **[pnpm](https://pnpm.io/)** 9.x
+- **Supabase** (or any Postgres): `DATABASE_URL` with `?sslmode=require` in production
+- **Upstash Redis** (optional): required for ephemeral quick share and production rate limits
 
 ### Setup
 
@@ -53,149 +42,284 @@
 git clone https://github.com/lucerowb/dot-vault.git
 cd dot-vault
 cp .env.example .env.local
-# DATABASE_URL (Supabase), BETTER_AUTH_SECRET, STORAGE_ENCRYPTION_KEY, Redis for quick share, etc.
+# Fill DATABASE_URL, BETTER_AUTH_SECRET, STORAGE_ENCRYPTION_KEY, Redis for quick share, etc.
 pnpm install
-./node_modules/.bin/drizzle-kit migrate   # or apply drizzle/0000_init.sql + drizzle/0001_project_collab.sql in Supabase
+pnpm run db:migrate   # or apply drizzle/*.sql in order in the Supabase SQL editor
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the marketing home. **Quick share** (ephemeral uploads) lives at [`/quick-share`](/quick-share). Register a user to use **Cloud vault** at `/dashboard`.
+- Home: [http://localhost:3000](http://localhost:3000)
+- **Quick share**: [`/quick-share`](/quick-share)
+- **Cloud vault**: register → [`/dashboard`](/dashboard)
 
 If `pnpm install` complains about ignored build scripts (`esbuild`), run `pnpm approve-builds` once and retry.
 
-### Database migrations
-
-- Generated SQL lives in [`drizzle/`](./drizzle/). With `DATABASE_URL` set: `pnpm run db:migrate` (runs `drizzle-kit migrate`), or paste migrations in order (`0000_init.sql`, then `0001_project_collab.sql` for invites/members) into the Supabase SQL editor.
-
 ### Scripts
 
-| Command                     | Purpose                                           |
-| --------------------------- | ------------------------------------------------- |
-| `pnpm dev`                  | Next.js dev server.                               |
-| `pnpm build` / `pnpm start` | Production build / server.                        |
-| `pnpm lint`                 | ESLint.                                           |
-| `pnpm test`                 | Vitest (crypto helpers).                          |
-| `pnpm db:generate`          | Regenerate Drizzle migrations after schema edits. |
-| `pnpm db:migrate`           | Apply migrations.                                 |
-| `pnpm db:push`              | Push schema (dev prototyping).                    |
+| Command | Purpose |
+| -------- | -------- |
+| `pnpm dev` | Next.js dev server |
+| `pnpm build` / `pnpm start` | Production build / server |
+| `pnpm lint` | ESLint |
+| `pnpm test` | Vitest (crypto helpers) |
+| `pnpm test:e2e` | Playwright (install browser first: `pnpm exec playwright install chromium`) |
+| `pnpm build:cli` | Build `packages/cli` |
+| `pnpm build:extension` | Build `packages/browser-extension` → `dist/` |
+| `pnpm run db:generate` | Regenerate Drizzle migrations |
+| `pnpm run db:migrate` | Apply migrations |
+| `pnpm run db:push` | Push schema (dev prototyping) |
 
-For Playwright: `pnpm exec playwright install chromium` then `pnpm test:e2e`.
+---
+
+## Monorepo packages
+
+pnpm workspace (see [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)):
+
+| Package | Path | Description |
+| -------- | ------ | ------------- |
+| **dot-vault** (app) | `.` | Next.js web app + API |
+| **dotvault** (CLI) | `packages/cli` | Terminal client for projects and env files |
+| **dotvault-browser-extension** | `packages/browser-extension` | Chrome extension for one-click fills on host platforms |
+
+Build artifacts (`dist/`, `node_modules/`) are gitignored; CI builds them on demand.
+
+---
+
+## Features
+
+### Core (web app)
+
+| Feature | Summary | Details |
+| -------- | --------- | -------- |
+| **Quick share** | Client-side encrypted links with TTL, optional passphrase, one-time URLs, sender revoke | [Quick share](#quick-share) below |
+| **Cloud vault** | Projects, labeled env files, encrypted at rest | [Cloud vault](#cloud-vault) |
+| **Collaboration** | Invite by email (`editor` / `viewer`), accept at `/invite/<token>` | [Collaboration](#collaboration) |
+| **Version history** | Automatic versions per env, diff and rollback in the dashboard | [docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md) |
+| **Audit logs** | Who did what, when, from where; export from API | [docs/AUDIT_LOGS.md](./docs/AUDIT_LOGS.md) |
+| **Import / export** | `.env`, JSON, and more via API | [docs/IMPORT_EXPORT.md](./docs/IMPORT_EXPORT.md) |
+| **Secret templates** | Pre-built patterns (AWS, Stripe, DB, etc.) | [docs/SECRET_TEMPLATES.md](./docs/SECRET_TEMPLATES.md) |
+| **GitHub integration** | Connect repos, sync secrets, scan, webhooks | [docs/GITHUB_INTEGRATION.md](./docs/GITHUB_INTEGRATION.md) |
+
+### Security and access
+
+| Feature | Summary | Details |
+| -------- | --------- | -------- |
+| **2FA** | TOTP, WebAuthn, backup codes | [docs/2FA.md](./docs/2FA.md) |
+| **IP allowlisting** | CIDR / per-IP restrictions on projects | [docs/IP_ALLOWLIST.md](./docs/IP_ALLOWLIST.md) |
+| **Access requests** | Time-limited elevated access with approval | [docs/ACCESS_REQUESTS.md](./docs/ACCESS_REQUESTS.md) |
+| **Break-glass** | Emergency access with multi-approver workflow | [docs/BREAK_GLASS.md](./docs/BREAK_GLASS.md) |
+| **Secret analytics** | Weak/duplicate secrets, security scoring | [docs/SECRET_ANALYTICS.md](./docs/SECRET_ANALYTICS.md) |
+
+### Automation and integrations
+
+| Feature | Summary | Details |
+| -------- | --------- | -------- |
+| **Secret rotation** | Schedules and provider hooks (AWS, Stripe, custom) | [docs/SECRET_ROTATION.md](./docs/SECRET_ROTATION.md) |
+| **Environment sync** | Promote staging → production with approvals | [docs/ENV_SYNC.md](./docs/ENV_SYNC.md) |
+| **CI/CD helpers** | GitHub Actions, GitLab, CircleCI workflow snippets | [docs/CICD_INTEGRATION.md](./docs/CICD_INTEGRATION.md) |
+| **Notifications** | Slack, Discord, generic webhooks | [docs/NOTIFICATIONS.md](./docs/NOTIFICATIONS.md) |
+| **API keys & webhooks** | REST API, outbound webhooks, SDK notes | [docs/API_WEBHOOKS.md](./docs/API_WEBHOOKS.md) |
+
+### Enterprise
+
+| Feature | Summary | Details |
+| -------- | --------- | -------- |
+| **Team workspaces** | Multi-project orgs, SAML/OIDC SSO | [docs/TEAM_WORKSPACES.md](./docs/TEAM_WORKSPACES.md) |
+| **Self-hosted** | Docker, Kubernetes, cloud runbooks | [docs/SELF_HOSTED.md](./docs/SELF_HOSTED.md) |
+
+### CLI and browser extension
+
+| Package | Summary | Details |
+| -------- | --------- | -------- |
+| **CLI** | Login, list projects/envs, push/pull `.env`, init | [CLI](#cli) · [docs/CLI.md](./docs/CLI.md) |
+| **Browser extension** | Fill env vars on Vercel, Netlify, GitHub, Railway, etc. | [Browser extension](#browser-extension) · [docs/BROWSER_EXTENSION.md](./docs/BROWSER_EXTENSION.md) |
+
+Full feature index: [docs/FEATURES_SUMMARY.md](./docs/FEATURES_SUMMARY.md). Production setup checklist: [docs/MANUAL_STEPS.md](./docs/MANUAL_STEPS.md).
+
+---
+
+## How to use
+
+### Quick share
+
+1. Open [`/quick-share`](/quick-share).
+2. Paste `.env` content (or upload a file).
+3. Choose TTL (1h–7d) and optional **one-time** or **passphrase**.
+4. Share the link; the decryption key stays in the `#fragment` (never sent to the server).
+5. Recipients open `/r/<token>#…` to decrypt in the browser.
+6. To revoke before expiry: use the delete token from the upload response with `DELETE /api/vault/:token` and header `X-Delete-Token`.
+
+### Cloud vault
+
+1. Register at [`/register`](/register) and sign in.
+2. **Dashboard** → create a **project** (name + slug).
+3. Open the project → **Environments** tab → add a **label** (e.g. `staging`, `production`) and paste `.env` content.
+4. View, edit, or delete env files; share a stored env via quick-share from the project UI.
+5. Tabs on the project page: **Version history**, **Audit log**, **GitHub** (when configured).
+
+### Collaboration
+
+1. Project **owner** → invite by email with role **editor** or **viewer**.
+2. Invitee signs in with that email and opens `/invite/<token>`.
+3. **Editors** can create/update/delete env blobs; **viewers** can read and quick-share from stored envs.
+
+Apply migrations through `0003_*` (or latest in [`drizzle/`](./drizzle/)) for invites, audit, GitHub, and enterprise tables—see [docs/MANUAL_STEPS.md](./docs/MANUAL_STEPS.md).
+
+### CLI
+
+From the repo (development):
+
+```bash
+pnpm build:cli
+node packages/cli/bin/dotvault.js login
+node packages/cli/bin/dotvault.js projects
+node packages/cli/bin/dotvault.js envs my-project-slug
+node packages/cli/bin/dotvault.js pull production -p my-project-slug -o .env
+node packages/cli/bin/dotvault.js push .env -p my-project-slug -l staging
+node packages/cli/bin/dotvault.js init   # detect local .env files and link a project
+```
+
+Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`list`), `pull`, `push`, `delete`, `init`. Configure API URL via `login --api-url` or config file (see [docs/CLI.md](./docs/CLI.md)).
+
+### Browser extension
+
+```bash
+pnpm build:extension
+```
+
+1. Chrome → `chrome://extensions` → **Developer mode** → **Load unpacked** → select `packages/browser-extension/dist`.
+2. Open the extension popup → connect your DotVault account.
+3. On supported sites (Vercel, Netlify, GitHub Actions secrets, Railway, etc.), use the extension to fill variables from a selected project/env.
+
+See [docs/BROWSER_EXTENSION.md](./docs/BROWSER_EXTENSION.md) for platform URLs and permissions.
+
+### Import / export (API)
+
+Authenticated session or API key (when enabled):
+
+- **Import**: `POST /api/projects/:projectId/import` — body with format and payload ([docs/IMPORT_EXPORT.md](./docs/IMPORT_EXPORT.md)).
+- **Export**: `GET /api/projects/:projectId/envs/:envId/export?format=env|json|…`.
+
+### GitHub
+
+1. Set `GITHUB_APP_*` / webhook secrets in `.env.local` (see `.env.example`).
+2. In the project dashboard → **GitHub** tab → connect repository.
+3. Configure sync rules; optional secret scanning via `/api/github/scan`.
+
+[docs/GITHUB_INTEGRATION.md](./docs/GITHUB_INTEGRATION.md)
+
+### Programmatic access
+
+- Session cookie: same-origin requests from the web app.
+- **API keys** and **webhooks**: [docs/API_WEBHOOKS.md](./docs/API_WEBHOOKS.md).
+- **CI/CD**: generate workflow snippets from [docs/CICD_INTEGRATION.md](./docs/CICD_INTEGRATION.md) or use the CLI in GitHub Actions.
 
 ---
 
 ## Environment variables
 
-| Variable                   | Required              | Description                                                                    |
-| -------------------------- | --------------------- | ------------------------------------------------------------------------------ |
-| `DATABASE_URL`             | **Yes** (cloud vault) | Supabase Postgres URI (`?sslmode=require`).                                    |
-| `BETTER_AUTH_SECRET`       | **Yes** (prod)        | Long random secret (`openssl rand -base64 32`).                                |
-| `BETTER_AUTH_URL`          | Recommended           | Same origin as the app, e.g. `https://your-app.vercel.app`.                    |
-| `STORAGE_ENCRYPTION_KEY`   | **Yes** (cloud vault) | Base64 **32-byte** key for at-rest env encryption (`openssl rand -base64 32`). |
-| `NEXT_PUBLIC_APP_URL`      | Recommended           | Public URL for links and auth client.                                          |
-| `UPSTASH_REDIS_REST_URL`   | For quick share       | Upstash Redis REST URL.                                                        |
-| `UPSTASH_REDIS_REST_TOKEN` | For quick share       | Upstash REST token.                                                            |
+| Variable | Required | Description |
+| -------- | -------- | ------------- |
+| `DATABASE_URL` | **Yes** (cloud vault) | Postgres URI (`?sslmode=require` in prod) |
+| `BETTER_AUTH_SECRET` | **Yes** (prod) | Session signing (`openssl rand -base64 32`) |
+| `BETTER_AUTH_URL` | Recommended | App origin for auth callbacks |
+| `STORAGE_ENCRYPTION_KEY` | **Yes** (cloud vault) | Base64 32-byte key for at-rest env encryption |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Public URL for links and auth client |
+| `UPSTASH_REDIS_REST_URL` | Quick share / rate limits | Upstash REST URL |
+| `UPSTASH_REDIS_REST_TOKEN` | Quick share / rate limits | Upstash REST token |
+
+Optional: SMTP (invites, resets), OAuth providers, GitHub App, S3 backups, workspace SSO—see [.env.example](./.env.example) and [docs/MANUAL_STEPS.md](./docs/MANUAL_STEPS.md).
 
 ### Security note (cloud vault)
 
-Cloud-stored env **plaintext** is visible to the **Next.js server** when you view or save a file: the app decrypts with `STORAGE_ENCRYPTION_KEY` to serve the UI. This is **not** the same zero-knowledge model as quick share. Protect `STORAGE_ENCRYPTION_KEY` and your database like any secrets backend. For stricter models, you could extend the client to encrypt before upload (not implemented here).
+Cloud-stored env **plaintext** is visible to the **Next.js server** when you view or save a file: the app decrypts with `STORAGE_ENCRYPTION_KEY` to serve the UI. This is **not** the same zero-knowledge model as quick share. Protect `STORAGE_ENCRYPTION_KEY` and your database like any secrets backend.
 
 ---
 
 ## HTTP API
 
-### `POST /api/vault`
+### Quick share (no session)
 
-Stores ciphertext JSON in Redis under `vault:<token>` with TTL.
+| Method | Path | Description |
+| ------ | ---- | ------------- |
+| `POST` | `/api/vault` | Store ciphertext in Redis (`ttl`, `oneTime`, `iv`, `ciphertext`) |
+| `GET` | `/api/vault/:token` | Fetch ciphertext metadata |
+| `DELETE` | `/api/vault/:token` | Revoke with `X-Delete-Token` |
 
-**Body (JSON)**
+### Cloud vault (session required)
 
-```json
-{
-  "iv": "base64(12-byte IV)",
-  "ciphertext": "base64(ciphertext + GCM tag)",
-  "ttl": 86400,
-  "oneTime": false
-}
-```
+| Method | Path | Description |
+| ------ | ---- | ------------- |
+| `GET` / `POST` | `/api/projects` | List / create projects |
+| `GET` / `PATCH` / `DELETE` | `/api/projects/:id` | Project CRUD |
+| `GET` / `POST` | `/api/projects/:id/envs` | List / create-or-overwrite by label |
+| `GET` / `PATCH` / `DELETE` | `/api/projects/:id/envs/:envId` | Env CRUD (decrypted content on GET) |
+| `GET` | `/api/projects/:id/envs/:envId/versions` | Version history |
+| `POST` | `/api/projects/:id/envs/:envId/versions` | Rollback |
+| `GET` | `/api/projects/:id/audit` | Audit log |
+| `POST` | `/api/projects/:id/import` | Bulk import |
+| `GET` | `/api/projects/:id/envs/:envId/export` | Export |
+| `POST` | `/api/projects/:id/invitations` | Invite collaborator |
+| `POST` | `/api/projects/invitations/accept` | Accept invite |
+| `*` | `/api/github/*` | GitHub connect, webhooks, scan |
 
-`ttl` must be one of `3600`, `28800`, `86400`, `604800`.
+Auth routes: `/api/auth/*` (Better Auth).
 
-**201 response**
+---
 
-```json
-{
-  "success": true,
-  "data": {
-    "token": "tk_…",
-    "expiresAt": 1716086400,
-    "deleteToken": "dt_…"
-  }
-}
-```
+## CI
 
-Keep `deleteToken` private to the sender; it is **not** part of the share URL.
+GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) uses path filters:
 
-### `GET /api/vault/:token`
+- **App** — lint, unit tests, Next.js build when `src/`, `drizzle/`, etc. change
+- **CLI** — `pnpm --filter dotvault build` when `packages/cli/**` changes
+- **Extension** — `pnpm --filter dotvault-browser-extension build` when `packages/browser-extension/**` changes
 
-Returns `{ iv, ciphertext, expiresAt, oneTime }`. One-time vaults are deleted on first successful read.
+Use **Actions → CI → Run workflow** to run all jobs manually.
 
-| Status | Meaning                          |
-| ------ | -------------------------------- |
-| `404`  | Missing or expired vault.        |
-| `410`  | One-time vault already consumed. |
-| `429`  | Rate limited.                    |
+---
 
-### `DELETE /api/vault/:token`
+## Documentation
 
-Headers: `X-Delete-Token: <deleteToken>` — removes the vault and consumption tombstone.
-
-### Cloud vault (session cookie required)
-
-| Method   | Path                            | Description                                                                    |
-| -------- | ------------------------------- | ------------------------------------------------------------------------------ |
-| `GET`    | `/api/projects`                 | List your projects.                                                            |
-| `POST`   | `/api/projects`                 | Body `{ "name": "…", "slug?" }` — create project.                              |
-| `GET`    | `/api/projects/:id`             | Project metadata.                                                              |
-| `PATCH`  | `/api/projects/:id`             | Body `{ "name?", "slug?" }`.                                                   |
-| `DELETE` | `/api/projects/:id`             | Deletes project and env rows.                                                  |
-| `GET`    | `/api/projects/:id/envs`        | List env labels (no decrypted content).                                        |
-| `POST`   | `/api/projects/:id/envs`        | Body `{ "label": "staging", "content": "…" }` — create **or overwrite** label. |
-| `GET`    | `/api/projects/:id/envs/:envId` | Decrypted plaintext (authorized owner only).                                   |
-| `PATCH`  | `/api/projects/:id/envs/:envId` | Partial update `label` and/or `content`.                                       |
-| `DELETE` | `/api/projects/:id/envs/:envId` | Remove env blob.                                                               |
+| Doc | Topic |
+| ----- | ------ |
+| [FEATURES_SUMMARY.md](./docs/FEATURES_SUMMARY.md) | Feature index |
+| [MANUAL_STEPS.md](./docs/MANUAL_STEPS.md) | Production setup |
+| [CLI.md](./docs/CLI.md) | CLI reference |
+| [BROWSER_EXTENSION.md](./docs/BROWSER_EXTENSION.md) | Extension |
+| [IMPORT_EXPORT.md](./docs/IMPORT_EXPORT.md) | Import/export formats |
+| [VERSION_HISTORY.md](./docs/VERSION_HISTORY.md) | Versions and rollback |
+| [AUDIT_LOGS.md](./docs/AUDIT_LOGS.md) | Audit trail |
+| [GITHUB_INTEGRATION.md](./docs/GITHUB_INTEGRATION.md) | GitHub App |
+| [2FA.md](./docs/2FA.md) | Two-factor auth |
+| [API_WEBHOOKS.md](./docs/API_WEBHOOKS.md) | API keys and webhooks |
+| [SELF_HOSTED.md](./docs/SELF_HOSTED.md) | Docker / K8s deploy |
 
 ---
 
 ## Security notes
 
-- **Quick share** threat model (zero-knowledge to the DotVault Redis layer): ciphertext + fragment key; passphrase adds another layer when used.
-- **Cloud vault**: the app server can decrypt blobs when you fetch them (needs `STORAGE_ENCRYPTION_KEY`). Protect infra and logs accordingly.
-- **URL fragments** (quick share) can appear in browser history — use incognito where it matters.
+- **Quick share**: ciphertext on Redis; key in URL fragment; optional passphrase (`v2.` fragments).
+- **Cloud vault**: server can decrypt with `STORAGE_ENCRYPTION_KEY`; protect infra and logs.
+- **Fragments** may appear in browser history—use private windows when it matters.
 
-This project does **not** provide legal or compliance advice. Review against your own policies before sharing regulated data.
-
----
-
-## Deploying to Vercel / Supabase
-
-1. Supabase → create project → apply `drizzle/0000_init.sql` or run `pnpm db:migrate` locally against `DATABASE_URL`.
-2. Fill **Better Auth env**: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `STORAGE_ENCRYPTION_KEY`.
-3. (Optional quick share) Add Upstash Redis `UPSTASH_*` vars.
-4. Deploy on Vercel; ensure **production** runtime can reach Supabase (**IPv4/v6**, SSL).
-
-Ephemeral vault routes (`/api/vault/*`) use the **Edge** runtime; Better Auth + Postgres routes use the default **Node** runtime.
+This project does **not** provide legal or compliance advice.
 
 ---
 
-## Roadmap (from the design doc)
+## Deploying
 
-- **CLI** — `npx dotvault push` / `pull` (Node 18+ Web Crypto) as a separate package or workspace.
-- **Browser extension** — gated on adoption milestones.
+1. Postgres: apply all migrations in [`drizzle/`](./drizzle/) (or `pnpm run db:migrate`).
+2. Set `DATABASE_URL`, `BETTER_AUTH_*`, `STORAGE_ENCRYPTION_KEY`, `NEXT_PUBLIC_APP_URL`.
+3. Optional: Upstash for quick share; SMTP for email; GitHub App vars.
+4. Deploy on Vercel, Coolify ([`Dockerfile`](./Dockerfile)), or [self-hosted](./docs/SELF_HOSTED.md).
 
-Contributions and issues are welcome on [GitHub](https://github.com/lucerowb/dot-vault).
+Ephemeral vault routes (`/api/vault/*`) use the **Edge** runtime; Better Auth + Postgres use **Node**.
 
 ---
 
 ## Acknowledgements
 
 Built with [Next.js](https://nextjs.org/), [Tailwind CSS](https://tailwindcss.com/), [Framer Motion](https://www.framer.com/motion/), [Better Auth](https://www.better-auth.com/), [Drizzle ORM](https://orm.drizzle.team/), [Supabase Postgres](https://supabase.com/), [Zod](https://zod.dev/), and [Upstash](https://upstash.com/).
+
+Contributions and issues welcome on [GitHub](https://github.com/lucerowb/dot-vault/issues).

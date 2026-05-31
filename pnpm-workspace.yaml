@@ -1,6 +1,7 @@
-# Single-package repo; `packages` is required when this file exists (pnpm run / CI / Docker).
+# Root app plus workspace packages (CLI, browser extension).
 packages:
   - "."
+  - "packages/*"
 
 allowBuilds:
   esbuild: true

@@ -38,6 +38,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "build:cli": "pnpm --filter dotvault build",
+    "build:extension": "pnpm --filter dotvault-browser-extension build",
     "brand:normalize": "node scripts/normalize-brand-logos.mjs"
   },
   "dependencies": {
