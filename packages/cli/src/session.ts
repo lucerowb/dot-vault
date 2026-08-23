@@ -26,6 +26,13 @@ import {
 import { loadSession, saveSession, type CliSession } from "./session-store.js";
 import { createSpinner } from "./spinner.js";
 import {
+  confirmPushAfterScan,
+  runDiffCommand,
+  runExampleCommand,
+  runScanCommand,
+  runShareCommand,
+} from "./commands.js";
+import {
   CLI_BIN,
   hint,
   info,
@@ -224,6 +231,12 @@ async function actionPush(session: CliSession): Promise<void> {
   const envFile = await promptEnvFile(detected);
   const content = await readEnvFile(envFile);
 
+  const ok = await confirmPushAfterScan(content, envFile);
+  if (!ok) {
+    hint("Upload cancelled. Fix the findings and try again.");
+    return;
+  }
+
   const basename = path.basename(envFile);
   let label: string | undefined;
   if (basename.startsWith(".env.")) {
@@ -365,6 +378,24 @@ export async function runInteractiveSession(): Promise<void> {
               { name: "📥  Download env → local file", value: "pull" },
               { name: "📤  Upload local .env → vault", value: "push" },
               {
+                name: "🔀  Compare envs (diff)",
+                value: "diff",
+                description: "File vs vault label, or two labels",
+              },
+              {
+                name: "🔗  Quick-share an encrypted link",
+                value: "share",
+                description: "Zero-knowledge link from terminal",
+              },
+              {
+                name: "🔍  Scan local .env for risky secrets",
+                value: "scan",
+              },
+              {
+                name: "📄  Generate .env.example",
+                value: "example",
+              },
+              {
                 name: "✏️  Edit env (download, edit, re-upload)",
                 value: "edit",
               },
@@ -408,6 +439,18 @@ export async function runInteractiveSession(): Promise<void> {
           break;
         case "push":
           await actionPush(session);
+          break;
+        case "diff":
+          await runDiffCommand(undefined, undefined, {});
+          break;
+        case "share":
+          await runShareCommand(undefined, {});
+          break;
+        case "scan":
+          await runScanCommand(undefined, {});
+          break;
+        case "example":
+          await runExampleCommand(undefined, {});
           break;
         case "edit":
           await actionEditEnv(session);

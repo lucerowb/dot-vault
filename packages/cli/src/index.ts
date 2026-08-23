@@ -47,6 +47,13 @@ import {
 import { runInteractiveSession } from "./session.js";
 import { runInitWizard } from "./wizard.js";
 import { printCompletionScript } from "./completion.js";
+import {
+  confirmPushAfterScan,
+  runDiffCommand,
+  runExampleCommand,
+  runScanCommand,
+  runShareCommand,
+} from "./commands.js";
 
 function handleError(error: unknown): never {
   console.error(
@@ -276,10 +283,11 @@ function registerProgram(): void {
   program
     .command("push [file]")
     .aliases(["ps", "up", "put"])
-    .description("Upload a local .env file to the vault")
+    .description("Upload a local .env file to the vault (scans it first)")
     .option("-p, --project <slug>", "Project slug (not env name)")
     .option("-l, --label <name>", "Environment label")
     .option("-f, --force", "Overwrite without asking")
+    .option("--no-scan", "Skip the pre-upload security scan")
     .action(async (file, options) => {
       try {
         await requireAuth();
@@ -291,6 +299,14 @@ function registerProgram(): void {
           options.project,
           "push",
         );
+
+        if (options.scan !== false) {
+          const ok = await confirmPushAfterScan(content, envFile, options.force);
+          if (!ok) {
+            info("Cancelled — nothing was uploaded. Fix findings or use --force.");
+            return;
+          }
+        }
 
         let label = options.label;
         if (!label) {
@@ -362,6 +378,63 @@ function registerProgram(): void {
         await api.deleteEnv(projectId, label);
         spinner.succeed(chalk.green(`Deleted ${label}`));
         console.log();
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  program
+    .command("diff [a] [b]")
+    .aliases(["df", "compare"])
+    .description("Compare two env sources (file path or vault label)")
+    .option("-p, --project <slug>", "Project slug (not env name)")
+    .action(async (a, b, options) => {
+      try {
+        await requireAuth();
+        await runDiffCommand(a, b, options);
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  program
+    .command("share [file-or-label]")
+    .description("Create an encrypted quick-share link from the terminal")
+    .option("-p, --project <slug>", "Project slug (when sharing a vault label)")
+    .option("--ttl <ttl>", "Expiry: 5m, 15m, 1h, 8h, 24h, 7d", "1h")
+    .option("--one-time", "Link self-destructs after first open")
+    .option("--passphrase", "Protect the link with a passphrase")
+    .option("-f, --force", "Skip the pre-share scan prompt")
+    .action(async (ref, options) => {
+      try {
+        await requireAuth();
+        await runShareCommand(ref, options);
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  program
+    .command("scan [file]")
+    .description("Audit a local .env file for weak or leaked secrets")
+    .option("--json", "Output findings as JSON (for CI)")
+    .action(async (file, options) => {
+      try {
+        await runScanCommand(file, options);
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  program
+    .command("example [file]")
+    .aliases(["ex", "env-example"])
+    .description("Generate a shareable .env.example (values replaced)")
+    .option("-o, --output <file>", "Output path", ".env.example")
+    .option("-f, --force", "Overwrite output without asking")
+    .action(async (file, options) => {
+      try {
+        await runExampleCommand(file, options);
       } catch (error) {
         handleError(error);
       }

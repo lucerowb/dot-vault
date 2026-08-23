@@ -60,6 +60,9 @@ const TIPS = [
   `List envs: \`${CLI_BIN} e realpha\` or \`${CLI_BIN} envs\`.`,
   `Pull to file: \`${CLI_BIN} pl production -p my-slug -o .env\`.`,
   `First time here? \`${CLI_BIN} init\` runs the setup wizard.`,
+  `Compare before you pull: \`${CLI_BIN} diff .env production\`.`,
+  `Share without the browser: \`${CLI_BIN} share .env --ttl 24h\`.`,
+  `Audit secrets locally: \`${CLI_BIN} scan\` (CI-friendly with --json).`,
 ];
 
 export function printRandomTip(): void {
@@ -77,10 +80,13 @@ export function printCheatsheet(): void {
     ["projects", "ls · p", "List projects"],
     ["envs", "e · env", "List env labels"],
     ["pull", "pl · get", "Download → file"],
-    ["push", "ps · up", "Upload ← file"],
+    ["push", "ps · up", "Upload ← file (scanned)"],
+    ["diff", "df", "Compare file / labels"],
+    ["share", "", "Encrypted quick-share link"],
+    ["scan", "", "Audit local .env"],
+    ["example", "ex", "Generate .env.example"],
     ["delete", "rm", "Remove env"],
     ["init", "setup", "Wizard"],
-    ["logo", "art", "ASCII animation"],
     ["shell", "i · sh", "Interactive session"],
     ["(no cmd)", "", "Same as shell"],
   ];
@@ -102,7 +108,12 @@ export function printNextSteps(command: string): void {
       `${CLI_BIN} pl production -p <slug>`,
     ],
     pull: [`${CLI_BIN} ps .env -p <slug> -l staging  # push changes back`],
-    push: [`${CLI_BIN} pl <label> -p <slug>       # pull anytime`],
+    push: [
+      `${CLI_BIN} pl <label> -p <slug>       # pull anytime`,
+      `${CLI_BIN} diff .env <label>          # see what changed`,
+    ],
+    diff: [`${CLI_BIN} ps .env -p <slug> -l staging  # sync a side`],
+    share: [`${CLI_BIN} scan                        # audit first next time`],
     envs: [`${CLI_BIN} pl <label> -p <slug> -o .env`],
     projects: [`${CLI_BIN} e <slug>`, `${CLI_BIN} init`],
     init: [`${CLI_BIN} st`, `${CLI_BIN} pl production -p <slug>`],

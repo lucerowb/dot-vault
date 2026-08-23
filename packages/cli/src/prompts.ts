@@ -77,7 +77,7 @@ export async function promptProject(
 
 export async function promptEnvLabel(
   projectId: string,
-  purpose: "pull" | "push" | "delete",
+  purpose: "pull" | "push" | "delete" | "share",
 ): Promise<string> {
   const envs = await api.listEnvs(projectId);
 

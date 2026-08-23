@@ -15,6 +15,23 @@ export interface ProjectEnv {
   updatedAt: string;
 }
 
+export interface EnvDiffEntry {
+  key: string;
+  value?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface EnvDiffResponse {
+  from: { label: string; updatedAt: string };
+  to: { label: string; updatedAt: string };
+  added: EnvDiffEntry[];
+  removed: EnvDiffEntry[];
+  changed: EnvDiffEntry[];
+  unchangedCount: number;
+  changeCount: number;
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -210,6 +227,19 @@ class ApiClient {
       id: string;
     }>(`/projects/${projectId}/envs/${env.id}`);
     return { content: data.content, env };
+  }
+
+  /** Key-level diff between two stored labels (values come back masked). */
+  async getEnvDiff(
+    projectId: string,
+    fromLabel: string,
+    toLabel: string,
+  ): Promise<EnvDiffResponse> {
+    return this.request<EnvDiffResponse>(
+      `/projects/${projectId}/envs/diff?from=${encodeURIComponent(
+        fromLabel,
+      )}&to=${encodeURIComponent(toLabel)}`,
+    );
   }
 
   /** Create or update env by label (server upserts on POST). */

@@ -144,7 +144,7 @@ Build artifacts (`dist/`, `node_modules/`) are gitignored; CI builds them on dem
 
 | Package | Summary | Details |
 | -------- | --------- | -------- |
-| **CLI** | Login, list projects/envs, push/pull `.env`, init | [CLI](#cli) · [docs/CLI.md](./docs/CLI.md) |
+| **CLI** | Login, list projects/envs, push/pull `.env`, init, plus **diff**, **encrypted quick-share**, **local secrets scan**, and **`.env.example` generation** | [CLI](#cli) · [docs/CLI.md](./docs/CLI.md) |
 | **Browser extension** | Fill env vars on Vercel, Netlify, GitHub, Railway, etc. | [Browser extension](#browser-extension) · [docs/BROWSER_EXTENSION.md](./docs/BROWSER_EXTENSION.md) |
 
 Full feature index: [docs/FEATURES_SUMMARY.md](./docs/FEATURES_SUMMARY.md). Production setup checklist: [docs/MANUAL_STEPS.md](./docs/MANUAL_STEPS.md).
@@ -260,10 +260,14 @@ pnpm dv login --api-url http://localhost:3000
 pnpm dv              # interactive session (project + env workflows)
 pnpm dv pl production -p my-slug -o .env
 pnpm dv ps .env.local -p my-slug -l staging
+pnpm dv diff .env production      # compare local vs vault (masked)
+pnpm dv share .env --ttl 24h      # zero-knowledge quick-share link
+pnpm dv scan                      # audit local secrets (CI-friendly)
+pnpm dv example                   # generate .env.example
 pnpm dv project-create "My App"
 ```
 
-Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`e`), `pull` (`pl`), `push` (`ps`), `delete`, `init`, `project-create`, `shell`, `completion`, `help`. See [`packages/cli/README.md`](./packages/cli/README.md) and [`docs/CLI.md`](./docs/CLI.md).
+Commands: `login`, `logout`, `status`, `projects` (`ls`), `envs` (`e`), `pull` (`pl`), `push` (`ps`), `diff`, `share`, `scan`, `example`, `delete`, `init`, `project-create`, `shell`, `completion`, `help`. See [`packages/cli/README.md`](./packages/cli/README.md) and [`docs/CLI.md`](./docs/CLI.md).
 
 Default API URL is resolved at runtime (first match wins):
 
@@ -348,6 +352,7 @@ Cloud-stored env **plaintext** is visible to the **Next.js server** when you vie
 | `GET` / `PATCH` / `DELETE` | `/api/projects/:id` | Project CRUD |
 | `GET` / `POST` | `/api/projects/:id/envs` | List / create-or-overwrite by label |
 | `GET` / `PATCH` / `DELETE` | `/api/projects/:id/envs/:envId` | Env CRUD (decrypted content on GET) |
+| `GET` | `/api/projects/:id/envs/diff?from=&to=` | Key-level diff between two labels (values masked) |
 | `GET` | `/api/projects/:id/envs/:envId/versions` | Version history |
 | `POST` | `/api/projects/:id/envs/:envId/versions` | Rollback |
 | `GET` | `/api/projects/:id/audit` | Audit log |

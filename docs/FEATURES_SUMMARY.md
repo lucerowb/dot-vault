@@ -227,6 +227,7 @@ This document provides a comprehensive overview of all features implemented in t
 
 - **Location**: `packages/cli/`
 - **Shipped today**: sign-in, list/create projects, list/pull/push/rename/delete envs, interactive session, setup wizard, shell completion
+- **Power tools**: `diff` (file vs label or label vs label, masked output), `share` (zero-knowledge quick-share from the terminal with TTL / one-time / passphrase), `scan` (offline secrets audit, CI exit codes), `example` (`.env.example` generator); `push` runs the audit before uploading
 - **Web / API for**: sharing, rotation, team access, import-export at scale
 - **Documentation**: [`packages/cli/README.md`](https://github.com/lucerowb/dot-vault/blob/main/packages/cli/README.md), [`docs/CLI.md`](./CLI.md)
 

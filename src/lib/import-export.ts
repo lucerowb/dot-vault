@@ -90,7 +90,9 @@ const NetlifySchema = z.array(
 );
 
 /**
- * Parse .env file content
+ * Parse .env file content.
+ * Handles single-line values, quoted values, and multi-line quoted values
+ * opened as `KEY="line1` and closed by a line ending in the same quote.
  */
 export function parseEnvFile(content: string): ImportResult {
   const secrets: Array<{ key: string; value: string }> = [];
@@ -106,68 +108,51 @@ export function parseEnvFile(content: string): ImportResult {
     // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith("#")) continue;
 
-    // Handle multi-line values
-    if (trimmed.startsWith('"') || trimmed.startsWith("'")) {
-      let value = trimmed;
-      let j = i + 1;
+    const equalIndex = trimmed.indexOf("=");
+    if (equalIndex === -1) {
+      errors.push(`Line ${i + 1}: Invalid format`);
+      continue;
+    }
 
-      // Find closing quote
+    const key = trimmed.slice(0, equalIndex).trim();
+    let value = trimmed.slice(equalIndex + 1).trim();
+
+    const quote = value[0];
+    const hasOpeningQuote = quote === '"' || quote === "'";
+    const closedInline =
+      hasOpeningQuote &&
+      value.length >= 2 &&
+      value.endsWith(quote) &&
+      !value.endsWith("\\" + quote);
+
+    // Multi-line quoted value: keep consuming until the closing quote.
+    if (hasOpeningQuote && !closedInline) {
+      let j = i + 1;
       while (j < lines.length) {
         const nextLine = lines[j];
         if (nextLine === undefined) break;
         value += "\n" + nextLine;
-        const quote = trimmed[0];
-        if (
-          quote &&
-          nextLine.trim().endsWith(quote) &&
-          !nextLine.trim().endsWith("\\" + quote)
-        ) {
-          break;
-        }
+        const t = nextLine.trim();
+        if (t.endsWith(quote) && !t.endsWith("\\" + quote)) break;
         j++;
       }
-
       i = j;
-
-      const equalIndex = value.indexOf("=");
-      if (equalIndex === -1) {
-        errors.push(`Line ${i + 1}: Invalid format`);
-        continue;
-      }
-
-      const key = value.slice(0, equalIndex).trim();
-      let val = value.slice(equalIndex + 1).trim();
-
-      // Remove surrounding quotes
-      if (
-        (val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))
-      ) {
-        val = val.slice(1, -1);
-      }
-
-      secrets.push({ key, value: val });
-    } else {
-      // Single line value
-      const equalIndex = trimmed.indexOf("=");
-      if (equalIndex === -1) {
-        errors.push(`Line ${i + 1}: Invalid format`);
-        continue;
-      }
-
-      const key = trimmed.slice(0, equalIndex).trim();
-      let value = trimmed.slice(equalIndex + 1).trim();
-
-      // Remove surrounding quotes
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-
-      secrets.push({ key, value });
     }
+
+    // Remove surrounding quotes
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (!key) {
+      errors.push(`Line ${i + 1}: Missing key`);
+      continue;
+    }
+
+    secrets.push({ key, value });
   }
 
   return {

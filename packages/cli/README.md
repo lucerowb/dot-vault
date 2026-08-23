@@ -61,6 +61,66 @@ dv ps .env -p realpha -l staging   # push
 
 Omit flags for **searchable prompts** (projects, env labels, local files).
 
+## Power tools
+
+### Compare environments (`diff`)
+
+Each side is a **local file path** or a **vault label** — mix and match:
+
+```bash
+dv diff staging production        # two labels (server-side, masked)
+dv diff .env production           # local file vs vault
+dv diff .env.local .env.production
+```
+
+Output shows added (`+`), removed (`-`), and changed (`~`) keys. Values are always **masked**, so it's safe to run in terminals, CI logs, and screen shares.
+
+### Encrypted quick share from the terminal (`share`)
+
+Creates the same zero-knowledge links as `/quick-share`: content is encrypted locally (**AES-256-GCM**), only ciphertext is uploaded, and the decryption key lives in the URL `#fragment` — the server never sees it or your key.
+
+```bash
+dv share .env --ttl 24h
+dv share .env --ttl 15m --one-time
+dv share .env --passphrase          # v2 fragment; recipients must enter it
+dv share production -p realpha      # share straight from the vault
+```
+
+| Flag | Meaning |
+| ---- | ------- |
+| `--ttl` | `5m`, `15m`, `1h`, `8h`, `24h`, `7d` (default `1h`) |
+| `--one-time` | Link self-destructs after first open |
+| `--passphrase` | Prompt for a passphrase (PBKDF2-wrapped key) |
+| `-f, --force` | Skip the pre-share scan prompt |
+
+The command prints the link, its expiry, and a one-line `curl` to revoke early.
+
+### Local secrets audit (`scan`)
+
+Offline scan of a `.env` file for risky values: live provider credentials (AWS, Stripe, OpenAI, GitHub, Slack, Google, SendGrid, npm, JWTs, private keys), weak/duplicate/placeholder values, insecure `http://` URLs. Nothing leaves your machine.
+
+```bash
+dv scan                # audits .env
+dv scan .env.production
+dv scan --json         # machine-readable (CI)
+```
+
+Exit code is **1 when high-severity findings exist**, so `dv scan && dv push` fails closed in CI.
+
+### Generate `.env.example` (`example`)
+
+Replaces every value with a safe placeholder while preserving keys, comments, and order:
+
+```bash
+dv example                     # .env → .env.example
+dv example .env.production -o .env.example.production
+```
+
+### Scan-on-push
+
+`dv push` runs the same audit before uploading and asks for confirmation when it finds issues. Skip with `--force` (or `--no-scan`).
+
+
 ## Easy-to-remember aliases
 
 | What you want | Command | Alias |
@@ -72,6 +132,10 @@ Omit flags for **searchable prompts** (projects, env labels, local files).
 | Environments | `dv envs` | `dv e`, `dv env` |
 | Download | `dv pull` | `dv pl`, `dv get` |
 | Upload | `dv push` | `dv ps`, `dv up` |
+| Compare | `dv diff` | `dv df` |
+| Quick share | `dv share` | — |
+| Secrets audit | `dv scan` | — |
+| Example file | `dv example` | `dv ex` |
 | Delete | `dv delete` | `dv rm` |
 | Wizard | `dv init` | `dv setup` |
 | Interactive session | `dv shell` | `dv i`, `dv sh` |

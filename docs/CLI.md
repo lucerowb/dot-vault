@@ -50,11 +50,26 @@ dv st                                    # status
 dv ls                                    # projects
 dv e realpha                             # env labels (type to filter)
 dv pl production -p realpha -o .env      # pull
-dv ps .env.local -p realpha -l local     # push
+dv ps .env.local -p realpha -l local     # push (scanned first)
+dv diff .env production                  # compare local vs vault
+dv diff staging production               # compare two labels
+dv share .env --ttl 24h                  # encrypted quick-share link
+dv scan                                  # audit local secrets
+dv example                               # generate .env.example
 dv project-create "My App"               # new project
 dv init                                  # sign in + upload local .env*
 eval "$(dv completion zsh)"              # tab completion
 ```
+
+## Power tools
+
+- **`dv diff`** — key-level comparison between a local file and a vault label (or two labels). Values are masked, so output is safe for terminals and CI logs.
+- **`dv share`** — creates the same zero-knowledge links as `/quick-share` without opening a browser: AES-256-GCM locally, key in the URL fragment, optional passphrase / one-time / TTL.
+- **`dv scan`** — offline audit for live provider credentials, weak or duplicated values, placeholders, and `http://` URLs. Exits 1 on high-severity findings (CI-friendly).
+- **`dv example`** — writes `.env.example` with every value replaced by a placeholder; comments and key order preserved.
+- **`push` safety net** — uploads trigger the same scan and ask for confirmation when findings exist (`--force` to skip).
+
+Full flags and examples: [`packages/cli/README.md`](https://github.com/lucerowb/dot-vault/blob/main/packages/cli/README.md).
 
 ## API URL (runtime)
 
